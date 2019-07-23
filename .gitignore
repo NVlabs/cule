@@ -1,0 +1,19 @@
+# build artifacts
+*.o
+*.os
+*.pyc
+*.so
+__pycache__
+
+# media files
+*.png
+*.mov
+
+# build file
+build
+dist
+*.egg-info
+
+# model files
+*.pth
+

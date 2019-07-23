@@ -1,0 +1,9 @@
+name: cule
+channels:
+        - pytorch
+dependencies:
+        - matplotlib
+        - pytorch
+        - pip:
+                - gym[atari]
+                - opencv-python
