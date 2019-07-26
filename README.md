@@ -79,9 +79,6 @@ examples/
 }
 ```
 
-CuLE is released by NVIDIA Corporation as Open Source software under the
-3-clause "New" BSD license.
-
 # About
 
 CuLE is released by NVIDIA Corporation as Open Source software under the
