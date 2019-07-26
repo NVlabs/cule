@@ -22,7 +22,6 @@ We have tested the following environments.
 
 |**Operating System** | **Compiler** |
 |-----------------|----------|
-| Ubuntu 14.04 | GCC 4.8.2 |
 | Ubuntu 16.04 | GCC 5.4.0 |
 | Ubuntu 18.04 | GCC 7.3.0 |
 
@@ -31,12 +30,9 @@ any Maxwell-, Pascal-, Volta-, and Turing-architecture NVIDIA GPUs.
 
 |**GPU**|
 |---|
-|NVIDIA GeForce 1080|
-|NVIDIA TitanXP|
 |NVIDIA Tesla P100|
 |NVIDIA Tesla V100|
 |NVIDIA TitanV|
-|NVIDIA GeForce RTX 2080 TI, 2080, 2070|
 
 # Building CuLE
 
@@ -69,6 +65,22 @@ examples/
   utils/
   visualize/
 ```
+
+# Citing
+
+```
+@misc{dalton2019gpuaccelerated,
+   title={GPU-Accelerated Atari Emulation for Reinforcement Learning},
+   author={Steven Dalton and Iuri Frosio and Michael Garland},
+   year={2019},
+   eprint={1907.08467},
+   archivePrefix={arXiv},
+   primaryClass={cs.LG}
+}
+```
+
+CuLE is released by NVIDIA Corporation as Open Source software under the
+3-clause "New" BSD license.
 
 # About
 
