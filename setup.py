@@ -20,7 +20,7 @@ sources = [os.path.join('torchcule', f) for f in ['frontend.cpp', 'backend.cu']]
 include_dirs = [base_dir, os.path.join(base_dir, 'third_party', 'agency')]
 libraries = ['gomp', 'z']
 cxx_flags = []
-nvcc_flags = arch_gencode + ['-O3', '-Xptxas=-v', '-Xcompiler=-Wall,-Wextra']
+nvcc_flags = arch_gencode + ['-O3', '-Xptxas=-v', '-Xcompiler=-Wall,-Wextra,-fpermissive']
 
 parser = argparse.ArgumentParser('CuLE', add_help=False)
 parser.add_argument('--fastbuild', action='store_true', default=False, help='Build CuLE supporting only 2K roms')

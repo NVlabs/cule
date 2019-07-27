@@ -240,7 +240,7 @@ set_cuda(const bool use_cuda, const int32_t gpu_id)
         if(use_cuda)
         {
             this->gpu_id = gpu_id;
-            gpuErrchk(cudaSetDevice(gpu_id));
+            CULE_ERRCHK(cudaSetDevice(gpu_id));
             delete &get_policy<agency::parallel_execution_policy>();
             cule_par = new cule_policy();
         }
@@ -261,7 +261,7 @@ get_policy()
     assert(cule_par != nullptr);
     if(gpu_id != -1)
     {
-        gpuErrchk(cudaSetDevice(gpu_id));
+        CULE_ERRCHK(cudaSetDevice(gpu_id));
     }
 
     return *reinterpret_cast<ExecutionPolicy*>(cule_par);
