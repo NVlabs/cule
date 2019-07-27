@@ -182,3 +182,6 @@ class Agent():
 
   def eval(self):
       self.online_net.eval()
+
+  def __str__(self):
+      return self.online_net.__str__()

@@ -120,6 +120,7 @@ def worker(gpu, ngpus_per_node, args):
 
     # Construct validation memory
     if args.rank == 0:
+        print(dqn)
         print('Initializing evaluation memory with {} entries...'.format(args.evaluation_size), end='', flush=True)
         start_time = time.time()
 
