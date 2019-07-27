@@ -6,7 +6,6 @@ import time
 from memory import ReplayMemory
 from torchcule.atari import Env as AtariEnv
 from utils.openai.envs import create_vectorize_atari_env
-from helper import format_time
 
 def test(args, T, dqn, val_mem, env, device):
 

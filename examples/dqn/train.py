@@ -9,6 +9,7 @@ import csv
 import json
 import numpy as np
 import math
+import pytz
 import random
 import socket
 import time
@@ -22,7 +23,6 @@ from torchcule.atari import Env as AtariEnv
 from agent import Agent
 from memory import ReplayMemory
 from test import initialize_validation, test
-from helper import format_time, percent_time, progress_bar, vec_stats
 
 from utils.openai.envs import create_vectorize_atari_env
 from utils.runtime import cuda_device_str
@@ -67,6 +67,12 @@ def train(args):
 	else:
 		# Simply call main_worker function
 		worker(args.local_rank, ngpus_per_node, args)
+
+def vec_stats(vec):
+    return [func(vec).item() for func in [torch.mean, torch.median, torch.std, torch.min, torch.max]]
+
+def format_time(f):
+    return datetime.fromtimestamp(f, tz=pytz.utc).strftime('%H:%M:%S.%f s')
 
 def worker(gpu, ngpus_per_node, args):
     args.gpu = gpu
