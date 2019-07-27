@@ -398,7 +398,7 @@ def worker(gpu, ngpus_per_node, callback, args):
                                      value_loss, policy_loss, dist_entropy, train_csv_writer, train_csv_file)
             iterator.set_postfix_str(progress_data)
 
-    if args.plot:
+    if args.plot and (args.rank == 0):
         writer.close()
 
     if args.use_openai:

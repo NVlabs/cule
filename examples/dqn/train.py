@@ -129,8 +129,22 @@ def worker(gpu, ngpus_per_node, args):
         print('complete ({})'.format(format_time(time.time() - start_time)), flush=True)
 
     if args.evaluate:
-        dqn.eval()
-        rewards, lengths, avg_Q = test(args, 0, dqn, val_mem, test_env, train_device)  # Test
+        if args.rank == 0:
+            eval_start_time = time.time()
+            dqn.eval()  # Set DQN (online network) to evaluation mode
+            rewards, lengths, avg_Q = test(args, 0, dqn, val_mem, test_env, train_device)
+            dqn.train()  # Set DQN (online network) back to training mode
+            eval_total_time = time.time() - eval_start_time
+
+            rmean, rmedian, rstd, rmin, rmax = vec_stats(rewards)
+            lmean, lmedian, lstd, lmin, lmax = vec_stats(lengths)
+
+            print('reward: {:4.2f}, {:4.0f}, {:4.0f}, {:4.4f} | '
+                  'length: {:4.2f}, {:4.0f}, {:4.0f}, {:4.4f} | '
+                  'Avg. Q: {:4.4f} | {}'
+                  .format(rmean, rmin, rmax, rstd, lmean, lmin, lmax,
+                          lstd, avg_Q, format_time(eval_total_time)),
+                  flush=True)
     else:
         if args.rank == 0:
             print('Entering main training loop', flush=True)
