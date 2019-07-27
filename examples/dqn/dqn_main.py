@@ -1,31 +1,15 @@
-# -*- coding: utf-8 -*- 
-
 import argparse
-import atexit
+import configparser
 import errno
-import json
 import logging
 import os
 import psutil
-import random
 import re
-import shutil
-import subprocess
 import sys
 import time
 
 from pprint import pprint
-
-if sys.version_info.major == 2:
-    import ConfigParser as configparser
-    from distutils.spawn import find_executable
-else:
-    _path = os.path.abspath(os.path.pardir)
-    if not _path in sys.path:
-        sys.path = [_path] + sys.path
-
-    import configparser
-    from train import train
+from train import train
 
 def add_parser_options(parser):
     parser.add_argument('--num-ales', type=int, default=32, help='number of environments (default: 32)')

@@ -1,9 +1,11 @@
 import math
+import numpy as np
 import torch
+
 from torch import nn
 from torch.nn import functional as F
 
-import numpy as np
+from utils.openai.vec_normalize import RunningMeanStd
 
 # https://github.com/openai/baselines/blob/master/baselines/common/vec_env/vec_normalize.py
 class RunningMeanStd(object):

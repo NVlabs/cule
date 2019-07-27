@@ -1,6 +1,8 @@
 import os
 import sys
 
+from train import train
+
 _path = os.path.abspath(os.path.pardir)
 if not _path in sys.path:
     sys.path = [_path] + sys.path
@@ -19,9 +21,4 @@ def a2c_parser_options(parser):
     return parser
 
 if __name__ == '__main__':
-    if sys.version_info.major == 3:
-        from train import train
-    else:
-        train = None
-
     sys.exit(main(a2c_parser_options, train))

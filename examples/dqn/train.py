@@ -1,7 +1,13 @@
+import os
+import sys
+
+_path = os.path.abspath(os.path.pardir)
+if not _path in sys.path:
+    sys.path = [_path] + sys.path
+
 import csv
 import json
 import numpy as np
-import os
 import math
 import random
 import socket
@@ -12,13 +18,14 @@ import torch.cuda.nvtx as nvtx
 from datetime import datetime
 from tqdm import tqdm
 from torchcule.atari import Env as AtariEnv
-from utils.openai.envs import create_vectorize_atari_env
-from utils.runtime import cuda_device_str
 
 from agent import Agent
 from memory import ReplayMemory
 from test import initialize_validation, test
 from helper import format_time, percent_time, progress_bar, vec_stats
+
+from utils.openai.envs import create_vectorize_atari_env
+from utils.runtime import cuda_device_str
 
 class data_prefetcher():
     def __init__(self, batch_size, device, mem):
@@ -187,12 +194,6 @@ def worker(gpu, ngpus_per_node, args):
         target_update_offset = 0
 
         total_time = 0
-        env_time = 0
-        mem_time = 0
-        net_time = 0
-
-        fps_steps = 0
-        fps_start_time = time.time()
 
         # main loop
         iterator = range(total_steps)
@@ -220,8 +221,6 @@ def worker(gpu, ngpus_per_node, args):
             nvtx.range_pop()
             dqn.train()
 
-            fps_steps += 1
-
             if args.use_openai:
                 action = action.cpu().numpy()
 
@@ -245,10 +244,6 @@ def worker(gpu, ngpus_per_node, args):
                 reward = reward.to(device=train_device)
                 done = done.to(device=train_device)
                 action = action.to(device=train_device)
-
-                delta = time.time() - start_time
-                env_time += delta
-                total_time += delta
 
                 observation = observation.float().div_(255.0)
 
@@ -277,29 +272,17 @@ def worker(gpu, ngpus_per_node, args):
                 num_minibatches = min(int(args.num_ales / args.replay_frequency), 8)
                 for _ in range(num_minibatches):
                     # Sample transitions
-                    start_time = time.time()
                     nvtx.range_push('train:sample states')
                     idxs, states, actions, returns, next_states, nonterminals, weights = prefetcher.next()
                     nvtx.range_pop()
-                    delta = time.time() - start_time
-                    mem_time += delta
-                    total_time += delta
 
-                    start_time = time.time()
                     nvtx.range_push('train:network update')
                     loss = dqn.learn(states, actions, returns, next_states, nonterminals, weights)
                     nvtx.range_pop()
-                    delta = time.time() - start_time
-                    net_time += delta
-                    total_time += delta
 
-                    start_time = time.time()
                     nvtx.range_push('train:update priorities')
                     mem.update_priorities(idxs, loss)  # Update priorities of sampled transitions
                     nvtx.range_pop()
-                    delta = time.time() - start_time
-                    mem_time += delta
-                    total_time += delta
 
                     avg_loss += loss.mean().item()
                 avg_loss /= num_minibatches
@@ -312,18 +295,11 @@ def worker(gpu, ngpus_per_node, args):
             torch.cuda.current_stream().wait_stream(env_stream)
             torch.cuda.current_stream().wait_stream(train_stream)
 
-            start_time = time.time()
             nvtx.range_push('train:append memory')
             mem.append(observation, action, reward, done)  # Append transition to memory
             nvtx.range_pop()
-            delta = time.time() - start_time
-            mem_time += delta
-            total_time += delta
 
-            fps_end_time = time.time()
-            fps = (args.world_size * fps_steps * args.num_ales) / (fps_end_time - fps_start_time)
-            fps_start_time = fps_end_time
-            fps_steps = 0
+            total_time += time.time() - start_time
 
             if args.rank == 0:
                 if args.plot and ((update % args.replay_frequency) == 0):
@@ -336,7 +312,7 @@ def worker(gpu, ngpus_per_node, args):
                     dqn.eval()  # Set DQN (online network) to evaluation mode
                     rewards, lengths, avg_Q = test(args, T, dqn, val_mem, test_env, train_device)
                     dqn.train()  # Set DQN (online network) back to training mode
-                    eval_total_time = time.time() - start_time
+                    eval_total_time = time.time() - eval_start_time
                     eval_offset += args.evaluation_interval
 
                     rmean, rmedian, rstd, rmin, rmax = vec_stats(rewards)
@@ -344,9 +320,9 @@ def worker(gpu, ngpus_per_node, args):
 
                     print('reward: {:4.2f}, {:4.0f}, {:4.0f}, {:4.4f} | '
                           'length: {:4.2f}, {:4.0f}, {:4.0f}, {:4.4f} | '
-                          'Avg. Q: {:4.4f} | {} | Overall FPS: {:4.2f}'
+                          'Avg. Q: {:4.4f} | {}'
                           .format(rmean, rmin, rmax, rstd, lmean, lmin, lmax,
-                                  lstd, avg_Q, format_time(eval_total_time), fps),
+                                  lstd, avg_Q, format_time(eval_total_time)),
                           flush=True)
 
                     if args.output_filename and csv_writer and csv_file:
@@ -361,9 +337,8 @@ def worker(gpu, ngpus_per_node, args):
                         writer.add_scalar('eval/avg_Q', avg_Q, T)
 
                 loss_str = '{:4.4f}'.format(avg_loss) if isinstance(avg_loss, float) else avg_loss
-                progress_data = 'T = {:,} epsilon = {:4.2f} avg reward = {:4.2f} loss: {} ({:4.2f}% net, {:4.2f}% mem, {:4.2f}% env)' \
-                                .format(T, epsilon, final_rewards.mean().item(), loss_str, \
-                                        *percent_time(total_time, net_time, mem_time, env_time))
+                progress_data = 'T = {:,} epsilon = {:4.2f} avg reward = {:4.2f} loss: {}' \
+                                .format(T, epsilon, final_rewards.mean().item(), loss_str)
                 iterator.set_postfix_str(progress_data)
 
     if args.plot and (args.rank == 0):
