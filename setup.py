@@ -38,7 +38,7 @@ setup(name='torchcule',
       description='A GPU RL environment package for PyTorch',
       url='https://github.com/NVlabs/cule',
       author='Steven Dalton',
-      author_email='sdalton@nvidia.com',
+      author_email='sdalton1@gmail.com',
       install_requires=['gym>=0.9.5'],
       ext_modules=[
           CUDAExtension('torchcule_atari',
