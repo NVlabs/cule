@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cule/config.hpp>
+#include <cule/cuda/errchk.hpp>
 
 #include <cule/atari/palettes.hpp>
 #include <cule/atari/rom.hpp>
