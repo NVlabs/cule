@@ -2,13 +2,11 @@ import argparse
 import os
 import sys
 
-# from distutils.extension import Extension
 from Cython.Distutils import build_ext
 
 from distutils.cmd import Command
 from setuptools import find_packages, setup, Extension
 from examples.utils.runtime import Runtime
-# from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 try:
     from examples.utils.runtime import get_device_props
