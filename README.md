@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/NVlabs/cule.svg?branch=master)](https://travis-ci.com/NVlabs/cule)
+
 ![ALT](/media/images/System.png "Deep RL System Overview")
 
 # CuLE 0.1.0
