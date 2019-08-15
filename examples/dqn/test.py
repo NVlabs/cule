@@ -23,10 +23,10 @@ def test(args, T, dqn, val_mem, env, device):
     # These variables are used to compute average rewards for all processes.
     lengths = torch.zeros(num_ales, dtype=torch.float32)
     rewards = torch.zeros(num_ales, dtype=torch.float32)
-    all_done = torch.zeros(num_ales, dtype=torch.uint8)
     not_done = torch.ones(num_ales, dtype=torch.float32)
+    all_done = torch.zeros(num_ales, dtype=torch.bool)
 
-    fire_reset = torch.zeros(num_ales, dtype=torch.uint8)
+    fire_reset = torch.zeros(num_ales, dtype=torch.bool)
     actions = torch.ones(num_ales, dtype=torch.uint8)
 
     maybe_npy = lambda a: a.numpy() if args.use_openai else a
@@ -56,6 +56,8 @@ def test(args, T, dqn, val_mem, env, device):
             new_lives = torch.IntTensor([d['ale.lives'] for d in info])
         else:
             new_lives = info['ale.lives'].clone()
+
+        done = done.bool()
         fire_reset = new_lives < lives
         lives.copy_(new_lives)
 

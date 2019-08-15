@@ -194,7 +194,7 @@ def worker(gpu, ngpus_per_node, args):
         episode_lengths = torch.zeros(args.num_ales, device=train_device, dtype=torch.float32)
         final_rewards = torch.zeros(args.num_ales, device=train_device, dtype=torch.float32)
         final_lengths = torch.zeros(args.num_ales, device=train_device, dtype=torch.float32)
-        has_completed = torch.zeros(args.num_ales, device=train_device, dtype=torch.uint8)
+        has_completed = torch.zeros(args.num_ales, device=train_device, dtype=torch.bool)
 
         mem = ReplayMemory(args, args.memory_capacity, train_device)
         mem.reset(observation)
@@ -263,18 +263,18 @@ def worker(gpu, ngpus_per_node, args):
 
                 observation = observation.to(device=train_device)
                 reward = reward.to(device=train_device)
-                done = done.to(device=train_device)
+                done = done.to(device=train_device, dtype=torch.bool)
                 action = action.to(device=train_device)
 
                 observation = observation.float().div_(255.0)
+                not_done = 1.0 - done.float()
 
                 state[:, :-1].copy_(state[:, 1:].clone())
-                state *= (1 - done).view(-1, 1, 1, 1).float()
+                state *= not_done.view(-1, 1, 1, 1)
                 state[:, -1].copy_(observation)
 
                 # update episodic reward counters
-                not_done = (1 - done).float()
-                has_completed |= (done == 1)
+                has_completed |= done
 
                 episode_rewards += reward.float()
                 final_rewards[done] = episode_rewards[done]
