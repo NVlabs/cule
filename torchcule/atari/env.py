@@ -121,19 +121,19 @@ class Env(object):
         self.cache_index = torch.zeros((num_envs,), device=device, dtype=torch.int32)
 
         self.env.set_cuda(self.is_cuda, device.index if self.is_cuda else -1)
-        self.env.initialize(self.states,
-                            self.frame_states,
-                            self.ram,
-                            self.tia,
-                            self.frame_buffer,
-                            self.cart_offsets,
-                            self.action_set,
-                            self.rand_states,
-                            self.cached_states,
-                            self.cached_ram,
-                            self.cached_frame_states,
-                            self.cached_tia,
-                            self.cache_index);
+        self.env.initialize(self.states.data_ptr(),
+                            self.frame_states.data_ptr(),
+                            self.ram.data_ptr(),
+                            self.tia.data_ptr(),
+                            self.frame_buffer.data_ptr(),
+                            self.cart_offsets.data_ptr(),
+                            self.action_set.data_ptr(),
+                            self.rand_states.data_ptr(),
+                            self.cached_states.data_ptr(),
+                            self.cached_ram.data_ptr(),
+                            self.cached_frame_states.data_ptr(),
+                            self.cached_tia.data_ptr(),
+                            self.cache_index.data_ptr());
 
     def to(self, device):
         if self.is_cuda:
@@ -169,19 +169,19 @@ class Env(object):
         self.cached_tia = self.cached_tia.to(device)
         self.cache_index = self.cache_index.to(device)
 
-        self.env.initialize(self.states,
-                            self.frame_states,
-                            self.ram,
-                            self.tia,
-                            self.frame_buffer,
-                            self.cart_offsets,
-                            self.action_set,
-                            self.rand_states,
-                            self.cached_states,
-                            self.cached_ram,
-                            self.cached_frame_states,
-                            self.cached_tia,
-                            self.cache_index);
+        self.env.initialize(self.states.data_ptr(),
+                            self.frame_states.data_ptr(),
+                            self.ram.data_ptr(),
+                            self.tia.data_ptr(),
+                            self.frame_buffer.data_ptr(),
+                            self.cart_offsets.data_ptr(),
+                            self.action_set.data_ptr(),
+                            self.rand_states.data_ptr(),
+                            self.cached_states.data_ptr(),
+                            self.cached_ram.data_ptr(),
+                            self.cached_frame_states.data_ptr(),
+                            self.cached_tia.data_ptr(),
+                            self.cache_index.data_ptr());
 
         if self.is_cuda:
             torch.cuda.current_stream().synchronize()
@@ -238,7 +238,7 @@ class Env(object):
             self.env.sync_other_stream()
             stream = torch.cuda.current_stream()
 
-        self.env.reset(seeds)
+        self.env.reset(seeds.data_ptr())
 
         if self.is_training:
             iterator = range(math.ceil(initial_steps / self.frameskip))
@@ -283,11 +283,11 @@ class Env(object):
             self.env.sync_other_stream()
 
         for _ in range(self.frameskip):
-            self.env.step(self.fire_reset and self.is_training, self.actions, self.done)
-            self.env.get_data(self.episodic_life, self.done, self.rewards, self.lives)
+            self.env.step(self.fire_reset and self.is_training, self.actions.data_ptr(), self.done.data_ptr())
+            self.env.get_data(self.episodic_life, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
 
         self.env.reset_states()
-        self.env.generate_frames(self.rescale, self.num_channels, self.observations)
+        self.env.generate_frames(self.rescale, self.num_channels, self.observations.data_ptr())
 
         if self.is_cuda:
             self.env.sync_this_stream()
