@@ -249,15 +249,15 @@ def worker(gpu, ngpus_per_node, args):
 
             with torch.cuda.stream(env_stream):
                 nvtx.range_push('train:env step')
+                observation, reward, done, info = train_env.step(action)  # Step
+
                 if args.use_openai:
-                    observation, reward, done, info = train_env.step(action)  # Step
                     # convert back to pytorch tensors
                     observation = torch.from_numpy(observation).squeeze(1)
                     reward = torch.from_numpy(reward.astype(np.float32))
-                    done = torch.from_numpy(done.astype(np.uint8))
+                    done = torch.from_numpy(done.astype(np.bool))
                     action = torch.from_numpy(action)
                 else:
-                    observation, reward, done, info = train_env.step(action, asyn=True)  # Step
                     observation = observation.clone().squeeze(-1)
                 nvtx.range_pop()
 

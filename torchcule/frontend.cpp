@@ -266,7 +266,6 @@ PYBIND11_MODULE(torchcule_atari, m) {
     )
     .def("get_states", [](AtariEnv& env, const size_t N, uint64_t indices)
         {
-            // const size_t N = indices.size(0);
             std::vector<AtariState> atari_states(N);
             env.get_states(N, reinterpret_cast<int32_t*>(indices), atari_states.data());
             return atari_states;
@@ -274,7 +273,6 @@ PYBIND11_MODULE(torchcule_atari, m) {
     )
     .def("set_states", [](AtariEnv& env, const size_t N, uint64_t indices, const std::vector<AtariState>& atari_states)
         {
-            // const size_t N = indices.size(0);
             env.set_states(N, reinterpret_cast<int32_t*>(indices), atari_states.data());
         }
     )
