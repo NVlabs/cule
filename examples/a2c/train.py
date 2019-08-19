@@ -229,7 +229,7 @@ def worker(gpu, ngpus_per_node, callback, args):
                 # move back to training memory
                 observation = observation.to(device=train_device)
                 reward = reward.to(device=train_device, dtype=torch.float32)
-                done = done.to(device=train_device)
+                done = done.to(device=train_device, dtype=torch.bool)
                 probs_action = probs_action.to(device=train_device, dtype=torch.long)
 
                 not_done = 1.0 - done.float()

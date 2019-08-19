@@ -45,10 +45,10 @@ def test(args, policy_net, env):
 
     lengths = torch.zeros(num_ales, dtype=torch.int32)
     rewards = torch.zeros(num_ales, dtype=torch.int32)
-    all_done = torch.zeros(num_ales, dtype=torch.uint8)
+    all_done = torch.zeros(num_ales, dtype=torch.bool)
     not_done = torch.ones(num_ales, dtype=torch.int32)
 
-    fire_reset = torch.zeros(num_ales, dtype=torch.uint8)
+    fire_reset = torch.zeros(num_ales, dtype=torch.bool)
     actions = torch.ones(num_ales, dtype=torch.uint8)
 
     maybe_npy = lambda a: a.numpy() if args.use_openai_test_env else a
@@ -76,11 +76,12 @@ def test(args, policy_net, env):
             # convert back to pytorch tensors
             observation = torch.from_numpy(observation)
             reward = torch.from_numpy(reward.astype(np.int32))
-            done = torch.from_numpy(done.astype(np.uint8))
+            done = torch.from_numpy(done.astype(np.bool))
             new_lives = torch.IntTensor([d['ale.lives'] for d in info])
         else:
             new_lives = info['ale.lives'].clone()
 
+        done = done.bool()
         fire_reset = new_lives < lives
         lives.copy_(new_lives)
 

@@ -151,8 +151,8 @@ class Runtime(object):
       return None
 
   def _locate(self):
-      if 'CUDAHOME' in os.environ:
-          home = os.environ['CUDAHOME']
+      if any(directory in os.environ for directory in ['CUDAHOME', 'CUDA_HOME']):
+          home = os.environ['CUDAHOME'] if 'CUDAHOME' in os.environ else os.environ['CUDA_HOME']
           nvcc = os.path.join(home, 'bin', 'nvcc')
       else:
           nvcc = self._find_in_path('nvcc', os.environ['PATH'])
