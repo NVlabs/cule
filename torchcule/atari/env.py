@@ -81,7 +81,7 @@ class Env(torchcule_atari.AtariEnv):
         self.rescale = rescale
         self.frameskip = frameskip
         self.repeat_prob = repeat_prob
-        self.is_cuda = device.type == 'cuda'
+        self.is_cuda = self.device.type == 'cuda'
         self.is_training = False
         self.clip_rewards = clip_rewards
         self.episodic_life = episodic_life
@@ -92,7 +92,7 @@ class Env(torchcule_atari.AtariEnv):
         self.action_set = torch.Tensor([int(s) for s in self.cart.minimal_actions()]).to(self.device).byte()
 
         # check if FIRE is in the action set
-        self.fire_reset = atari.FIRE in self.action_set
+        self.fire_reset = torchcule_atari.FIRE in self.action_set
 
         self.action_space = spaces.Discrete(self.action_set.size(0))
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.num_channels, self.height, self.width), dtype=np.uint8)
@@ -232,7 +232,7 @@ class Env(torchcule_atari.AtariEnv):
             self.sync_other_stream()
             stream = torch.cuda.current_stream()
 
-        self.reset(seeds.data_ptr())
+        super(Env, self).reset(seeds.data_ptr())
 
         if self.is_training:
             iterator = range(math.ceil(initial_steps / self.frameskip))
@@ -277,7 +277,7 @@ class Env(torchcule_atari.AtariEnv):
             self.sync_other_stream()
 
         for _ in range(self.frameskip):
-            self.step(self.fire_reset and self.is_training, self.actions.data_ptr(), self.done.data_ptr())
+            super(Env, self).step(self.fire_reset and self.is_training, self.actions.data_ptr(), self.done.data_ptr())
             self.get_data(self.episodic_life, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
 
         self.reset_states()
