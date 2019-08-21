@@ -13,7 +13,7 @@ try:
     codes = sorted(set([str(p.major) + str(p.minor) for p in get_device_props()]))
 except:
     print('Warning: Could not find nvcc in path. Compiling with sm_70 by default.')
-    codes = ['70']
+    codes = []
 
 arch_gencode = ['-arch=sm_' + codes[0]] + ['-gencode=arch=compute_{0},code=sm_{0}'.format(code) for code in codes]
 base_dir = os.path.dirname(os.path.realpath(__file__))
@@ -26,7 +26,7 @@ third_party_dir = os.path.join(base_dir, 'third_party')
 include_dirs = [base_dir, os.path.join(third_party_dir, 'agency'), os.path.join(third_party_dir, 'pybind11', 'include'), CUDA['include']]
 libraries = ['gomp', 'z']
 cxx_flags = []
-nvcc_flags = arch_gencode + ['-O3', '-Xptxas=-v', '-Xcompiler=-Wall,-Wextra,-fpermissive,-fPIC']
+nvcc_flags = arch_gencode + ['-O3', '-Xptxas=-v', '-Xcompiler=-Wall,-Wextra,-fPIC']
 
 parser = argparse.ArgumentParser('CuLE', add_help=False)
 parser.add_argument('--fastbuild', action='store_true', default=False, help='Build CuLE supporting only 2K roms')
