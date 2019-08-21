@@ -11,11 +11,11 @@ from examples.utils.runtime import Runtime
 try:
     from examples.utils.runtime import get_device_props
     codes = sorted(set([str(p.major) + str(p.minor) for p in get_device_props()]))
+    arch_gencode = ['-arch=sm_' + codes[0]] + ['-gencode=arch=compute_{0},code=sm_{0}'.format(code) for code in codes]
 except:
     print('Warning: Could not find nvcc in path. Compiling with sm_70 by default.')
-    codes = []
+    arch_gencode = []
 
-arch_gencode = ['-arch=sm_' + codes[0]] + ['-gencode=arch=compute_{0},code=sm_{0}'.format(code) for code in codes]
 base_dir = os.path.dirname(os.path.realpath(__file__))
 
 runtime = Runtime()
