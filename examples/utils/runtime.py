@@ -182,7 +182,7 @@ def get_device_props():
 
     rtlib = Runtime()
     rtlib.cudaGetDeviceCount(num_devices)
-    props = [cudaDeviceProp()] * num_devices.value
+    props = [cudaDeviceProp() for _ in range(num_devices.value)]
     for i, p in enumerate(props):
         rtlib.cudaGetDeviceProperties(p, i)
 
