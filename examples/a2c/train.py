@@ -29,23 +29,7 @@ try:
 except ImportError:
     raise ImportError('Please install apex from https://www.github.com/nvidia/apex to run this example.')
 
-def train(args, callback=callback):
-	args.world_size = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
-	args.distributed = (args.world_size > 1) or args.multiprocessing_distributed
-
-	ngpus_per_node = torch.cuda.device_count() if args.num_gpus_per_node == -1 else args.num_gpus_per_node
-	if args.multiprocessing_distributed:
-		# Since we have ngpus_per_node processes per node, the total world_size
-		# needs to be adjusted accordingly
-		args.world_size = ngpus_per_node * args.world_size
-		# Use torch.multiprocessing.spawn to launch distributed processes: the
-		# main_worker process function
-		torch.multiprocessing.spawn(worker, nprocs=ngpus_per_node, args=(ngpus_per_node, callback, args))
-	else:
-		# Simply call main_worker function
-		worker(args.local_rank, ngpus_per_node, callback, args)
-
-def worker(gpu, ngpus_per_node, callback, args):
+def worker(gpu, ngpus_per_node, args):
     args.gpu = gpu
 
     if args.distributed:

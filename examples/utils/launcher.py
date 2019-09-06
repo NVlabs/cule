@@ -8,6 +8,7 @@ import re
 import shutil
 import sys
 import time
+import torch
 
 from pprint import pprint
 
@@ -58,7 +59,23 @@ def add_global_parser_options(parser):
 
     return parser
 
-def maybe_restart(args, train_func):
+def dispatch(args, worker):
+	args.world_size = int(os.environ['WORLD_SIZE']) if 'WORLD_SIZE' in os.environ else 1
+	args.distributed = (args.world_size > 1) or args.multiprocessing_distributed
+
+	ngpus_per_node = torch.cuda.device_count() if args.num_gpus_per_node == -1 else args.num_gpus_per_node
+	if args.multiprocessing_distributed:
+		# Since we have ngpus_per_node processes per node, the total world_size
+		# needs to be adjusted accordingly
+		args.world_size = ngpus_per_node * args.world_size
+		# Use torch.multiprocessing.spawn to launch distributed processes: the
+		# main_worker process function
+		torch.multiprocessing.spawn(worker, nprocs=ngpus_per_node, args=(ngpus_per_node, args))
+	else:
+		# Simply call main_worker function
+		worker(args.local_rank, ngpus_per_node, args)
+
+def maybe_restart(args, worker):
     '''Restarts the current program, with file objects and descriptors
        cleanup
     '''
@@ -101,11 +118,11 @@ def maybe_restart(args, train_func):
         argv += [env]
         os.execle(executable, executable, *argv)
     else:
-        train_func(args)
+        dispatch(args, worker)
 
 # argparse initialization adapted from example at
 # https://stackoverflow.com/questions/3609852/which-is-the-best-way-to-allow-configuration-options-be-overridden-at-the-comman
-def main(add_extra_parser_options, train_func=None):
+def main(add_extra_parser_options, worker):
     argv = sys.argv[1:]
     conf_parser = argparse.ArgumentParser(description=__doc__,
             formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -136,4 +153,4 @@ def main(add_extra_parser_options, train_func=None):
     if args.local_rank == 0:
         pprint(vars(args))
 
-    maybe_restart(args, train_func)
+    maybe_restart(args, worker)

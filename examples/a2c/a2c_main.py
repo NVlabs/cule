@@ -7,7 +7,7 @@ if not _path in sys.path:
 
 from utils.launcher import main
 
-from train import train
+from train import worker
 
 def a2c_parser_options(parser):
     parser.add_argument('--entropy-coef', type=float, default=0.01, help='entropy term coefficient (default: 0.01)')
@@ -20,5 +20,13 @@ def a2c_parser_options(parser):
 
     return parser
 
+def a2c_main():
+    if sys.version_info.major == 3:
+        from train import worker
+    else:
+        worker = None
+
+    sys.exit(main(a2c_parser_options, worker))
+
 if __name__ == '__main__':
-    sys.exit(main(a2c_parser_options, train))
+    a2c_main()
