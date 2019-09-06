@@ -264,7 +264,8 @@ class Env(torchcule_atari.AtariEnv):
             ByteTensor: 'done' state for each environment
             list[str]: miscellaneous information (currently unused)
         """
-        # sanity checks
+        
+	# sanity checks
         assert actions.size(0) == self.num_envs
 
         self.rewards.zero_()
@@ -276,9 +277,14 @@ class Env(torchcule_atari.AtariEnv):
         if self.is_cuda:
             self.sync_other_stream()
 
-        for _ in range(self.frameskip):
+        for frame in range(self.frameskip):
             super(Env, self).step(self.fire_reset and self.is_training, self.actions.data_ptr(), self.done.data_ptr())
             self.get_data(self.episodic_life, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
+            if frame==self.frameskip-2:
+                self.reset_states()
+                self.generate_frames(self.rescale, self.num_channels, self.observations.data_ptr())
+                torch.cuda.current_stream().synchronize()
+                buffer = self.observations.clone()
 
         self.reset_states()
         self.generate_frames(self.rescale, self.num_channels, self.observations.data_ptr())
@@ -287,6 +293,10 @@ class Env(torchcule_atari.AtariEnv):
             self.sync_this_stream()
             if not asyn:
                 torch.cuda.current_stream().synchronize()
+
+        self.observations = torch.max(self.observations, buffer)
+        torch.cuda.current_stream().synchronize()
+
 
         if self.clip_rewards:
             self.rewards.sign_()
