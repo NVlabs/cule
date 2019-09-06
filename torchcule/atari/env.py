@@ -97,7 +97,8 @@ class Env(torchcule_atari.AtariEnv):
         self.action_space = spaces.Discrete(self.action_set.size(0))
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.num_channels, self.height, self.width), dtype=np.uint8)
 
-        self.observations = torch.zeros((num_envs, self.height, self.width, self.num_channels), device=self.device, dtype=torch.uint8)
+        self.observations1 = torch.zeros((num_envs, self.height, self.width, self.num_channels), device=self.device, dtype=torch.uint8)
+        self.observations2 = torch.zeros((num_envs, self.height, self.width, self.num_channels), device=self.device, dtype=torch.uint8)
         self.done = torch.zeros(num_envs, device=self.device, dtype=torch.uint8)
         self.actions = torch.zeros(num_envs, device=self.device, dtype=torch.uint8)
         self.last_actions = torch.zeros(num_envs, device=self.device, dtype=torch.uint8)
@@ -142,7 +143,8 @@ class Env(torchcule_atari.AtariEnv):
         self.is_cuda = self.device.type == 'cuda'
         self.set_cuda(self.is_cuda, self.device.index if self.is_cuda else -1)
 
-        self.observations = self.observations.to(self.device)
+        self.observations1 = self.observations1.to(self.device)
+        self.observations2 = self.observations2.to(self.device)
         self.done = self.done.to(self.device)
         self.actions = self.actions.to(self.device)
         self.last_actions = self.last_actions.to(self.device)
@@ -250,7 +252,7 @@ class Env(torchcule_atari.AtariEnv):
             if not asyn:
                 stream.synchronize()
 
-        return self.observations
+        return self.observations1
 
     def step(self, actions, asyn=False):
         """Take a step in the environment by apply a set of actions
@@ -264,12 +266,14 @@ class Env(torchcule_atari.AtariEnv):
             ByteTensor: 'done' state for each environment
             list[str]: miscellaneous information (currently unused)
         """
- 
-	# sanity checks
+
+	    # sanity checks
         assert actions.size(0) == self.num_envs
+        assert self.frameskip >= 2
 
         self.rewards.zero_()
-        self.observations.zero_()
+        self.observations1.zero_()
+        self.observations2.zero_()
         self.done.zero_()
 
         self.actions = self.action_set[actions.long()]
@@ -280,27 +284,23 @@ class Env(torchcule_atari.AtariEnv):
         for frame in range(self.frameskip):
             super(Env, self).step(self.fire_reset and self.is_training, self.actions.data_ptr(), self.done.data_ptr())
             self.get_data(self.episodic_life, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
-            if frame==self.frameskip-2:
-                self.reset_states()
-                self.generate_frames(self.rescale, self.num_channels, self.observations.data_ptr())
-                torch.cuda.current_stream().synchronize()
-                buffer = self.observations.clone()
+            if frame == (self.frameskip - 2):
+                self.generate_frames(self.rescale, self.num_channels, self.observations2.data_ptr())
+            elif frame == (self.frameskip - 1):
+                self.generate_frames(self.rescale, self.num_channels, self.observations1.data_ptr())
 
         self.reset_states()
-        self.generate_frames(self.rescale, self.num_channels, self.observations.data_ptr())
 
         if self.is_cuda:
             self.sync_this_stream()
             if not asyn:
                 torch.cuda.current_stream().synchronize()
 
-        self.observations = torch.max(self.observations, buffer)
-        torch.cuda.current_stream().synchronize()
-
+        self.observations1 = torch.max(self.observations1, self.observations2)
 
         if self.clip_rewards:
             self.rewards.sign_()
 
         info = {'ale.lives': self.lives}
 
-        return self.observations, self.rewards, self.done, info
+        return self.observations1, self.rewards, self.done, info
