@@ -46,6 +46,7 @@ class AtariEnv : public cule::atari::wrapper
                     int32_t* livesBuffer);
 
       void generate_frames(const bool rescale,
+                           const bool last_frame,
                            const size_t num_channels,
                            uint8_t* imageBuffer);
 

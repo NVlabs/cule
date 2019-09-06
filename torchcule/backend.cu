@@ -182,16 +182,17 @@ two_step(const cule::atari::Action* playerABuffer,
 void
 AtariEnv::
 generate_frames(const bool rescale,
+                const bool last_frame,
                 const size_t num_channels,
                 uint8_t* imageBuffer)
 {
     if(use_cuda)
     {
-        super_t::generate_frames(get_policy<cule_policy>(), rescale, num_channels, imageBuffer);
+        super_t::generate_frames(get_policy<cule_policy>(), rescale, last_frame, num_channels, imageBuffer);
     }
     else
     {
-        super_t::generate_frames(get_policy<agency::parallel_execution_policy>(), rescale, num_channels, imageBuffer);
+        super_t::generate_frames(get_policy<agency::parallel_execution_policy>(), rescale, last_frame, num_channels, imageBuffer);
     }
 }
 

@@ -285,11 +285,11 @@ class Env(torchcule_atari.AtariEnv):
             super(Env, self).step(self.fire_reset and self.is_training, self.actions.data_ptr(), self.done.data_ptr())
             self.get_data(self.episodic_life, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
             if frame == (self.frameskip - 2):
-                self.generate_frames(self.rescale, self.num_channels, self.observations2.data_ptr())
-            elif frame == (self.frameskip - 1):
-                self.generate_frames(self.rescale, self.num_channels, self.observations1.data_ptr())
+                self.generate_frames(self.rescale, False, self.num_channels, self.observations2.data_ptr())
+                torch.cuda.current_stream().synchronize()
 
         self.reset_states()
+        self.generate_frames(self.rescale, True, self.num_channels, self.observations1.data_ptr())
 
         if self.is_cuda:
             self.sync_this_stream()

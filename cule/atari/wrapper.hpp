@@ -89,12 +89,14 @@ public:
 
     template<typename ExecutionPolicy>
     void preprocess(ExecutionPolicy&& policy,
+                    const bool last_frame,
                     const uint32_t* tiaBuffer,
                     uint8_t* frameBuffer);
 
     template<typename ExecutionPolicy>
     void generate_frames(ExecutionPolicy&& policy,
                          const bool rescale,
+                         const bool last_frame,
                          const size_t num_channels,
                          uint8_t* imageBuffer);
 

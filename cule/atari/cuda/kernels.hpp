@@ -269,6 +269,7 @@ void get_data_kernel(const int32_t num_envs,
 template<typename State_t, size_t NT>
 __launch_bounds__(NT) __global__
 void process_kernel(const uint32_t num_envs,
+                    const bool last_frame,
                     const uint32_t* tia_update_buffer,
                     const uint32_t* cached_tia_update_buffer,
                     const uint32_t* cache_index_buffer,
@@ -293,7 +294,7 @@ void process_kernel(const uint32_t num_envs,
     const bool is_terminal = s.tiaFlags[FLAG_ALE_TERMINAL];
     const bool is_started  = s.tiaFlags[FLAG_ALE_STARTED];
 
-    if(is_started && is_terminal)
+    if(last_frame && is_started && is_terminal)
     {
         states_buffer[global_index].tiaFlags.clear(FLAG_ALE_TERMINAL);
         fs.srcBuffer = cached_tia_update_buffer + (cache_index_buffer[global_index] * ENV_UPDATE_SIZE);

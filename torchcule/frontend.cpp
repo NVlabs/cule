@@ -240,9 +240,10 @@ PYBIND11_MODULE(torchcule_atari, m) {
                          reinterpret_cast<int32_t*>(livesBuffer));
         }
     )
-    .def("generate_frames", [](AtariEnv& env, const bool rescale, const size_t num_channels, uint64_t imageBuffer)
+    .def("generate_frames", [](AtariEnv& env, const bool rescale, const bool last_frame, const size_t num_channels, uint64_t imageBuffer)
         {
             env.generate_frames(rescale,
+                                last_frame,
                                 num_channels,
                                 reinterpret_cast<uint8_t*>(imageBuffer));
         }

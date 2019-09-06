@@ -182,6 +182,7 @@ template<typename Environment,
 void
 preprocess(cule::cuda::parallel_execution_policy& policy,
            Wrapper& wrap,
+           const bool last_frame,
            const uint32_t* tiaBuffer,
            uint8_t* frameBuffer)
 {
@@ -193,6 +194,7 @@ preprocess(cule::cuda::parallel_execution_policy& policy,
     cule::atari::cuda::process_kernel<State_t, BLOCK_SIZE>
     <<<NUM_BLOCKS, BLOCK_SIZE, 0, policy.getStream()>>>(
         wrap.size(),
+        last_frame,
         tiaBuffer,
         wrap.cached_tia_update_ptr,
         wrap.cache_index_ptr,

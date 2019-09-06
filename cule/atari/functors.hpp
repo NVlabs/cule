@@ -218,6 +218,7 @@ struct preprocess_functor
 {
     template<class Agent, class State_t>
     void operator()(Agent& self,
+                    const bool last_frame,
                     const uint32_t* tia_update_buffer,
                     const uint32_t* cached_tia_update_buffer,
                     State_t* states_buffer,
@@ -235,7 +236,7 @@ struct preprocess_functor
 
         const bool is_terminal = s.tiaFlags[FLAG_ALE_TERMINAL];
         const bool is_started  = s.tiaFlags[FLAG_ALE_STARTED];
-        if(is_started && is_terminal)
+        if(last_frame && is_started && is_terminal)
         {
             CULE_ASSERT(cached_tia_update_buffer != nullptr);
             CULE_ASSERT(cache_index_buffer != nullptr);
