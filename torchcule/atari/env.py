@@ -264,7 +264,7 @@ class Env(torchcule_atari.AtariEnv):
             ByteTensor: 'done' state for each environment
             list[str]: miscellaneous information (currently unused)
         """
-        
+ 
 	# sanity checks
         assert actions.size(0) == self.num_envs
 
