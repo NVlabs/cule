@@ -41,7 +41,7 @@ def test(args, policy_net, env):
     if args.use_openai_test_env:
         observation = torch.from_numpy(env.reset()).squeeze(1)
     else:
-        observation = env.reset(initial_steps=3).squeeze(-1)
+        observation = env.reset(initial_steps=50).squeeze(-1)
 
     lengths = torch.zeros(num_ales, dtype=torch.int32)
     rewards = torch.zeros(num_ales, dtype=torch.int32)
