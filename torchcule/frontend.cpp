@@ -265,16 +265,16 @@ PYBIND11_MODULE(torchcule_atari, m) {
             // env.sync_this_stream(stream);
         }
     )
-    .def("get_states", [](AtariEnv& env, const size_t N, uint64_t indices)
+    .def("get_states", [](AtariEnv& env, const std::vector<int32_t>& indices)
         {
-            std::vector<AtariState> atari_states(N);
-            env.get_states(N, reinterpret_cast<int32_t*>(indices), atari_states.data());
+            std::vector<AtariState> atari_states(indices.size());
+            env.get_states(indices.size(), indices.data(), atari_states.data());
             return atari_states;
         }
     )
-    .def("set_states", [](AtariEnv& env, const size_t N, uint64_t indices, const std::vector<AtariState>& atari_states)
+    .def("set_states", [](AtariEnv& env, const std::vector<int32_t>& indices, const std::vector<AtariState>& atari_states)
         {
-            env.set_states(N, reinterpret_cast<int32_t*>(indices), atari_states.data());
+            env.set_states(indices.size(), indices.data(), atari_states.data());
         }
     )
     .def("set_cuda", &AtariEnv::set_cuda)

@@ -87,7 +87,7 @@ struct encode_states_functor
         s.tiaFlags.template change<cule::atari::FLAG_TIA_CTRLPF>((ts.CTRLPF & 0x01) == 0x01);
         /* ds.playfieldPriorityAndScore = fs.playfieldPriorityAndScore; */
         s.tiaFlags.template change<cule::atari::FLAG_TIA_REFP0>(ts.REFP0 != 0);
-        s.tiaFlags.template change<cule::atari::FLAG_TIA_REFP1>(ts.REFP0 != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_REFP1>(ts.REFP1 != 0);
         UPDATE_FIELD(s.PF,  cule::atari::FIELD_PFALL, ts.PF);
         UPDATE_FIELD(s.GRP, cule::atari::FIELD_GRP0, ts.GRP0);
         UPDATE_FIELD(s.GRP, cule::atari::FIELD_GRP1, ts.GRP1);
@@ -103,7 +103,7 @@ struct encode_states_functor
         UPDATE_FIELD(s.HM, cule::atari::FIELD_HMM1, ts.HMM1);
         UPDATE_FIELD(s.HM, cule::atari::FIELD_HMBL, ts.HMBL);
         s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELP0>(ts.VDELP0 != 0);
-        s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELP1>(ts.VDELP0 != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELP1>(ts.VDELP1 != 0);
         s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELBL>(ts.VDELBL != 0);
         s.tiaFlags.template change<cule::atari::FLAG_TIA_RESMP0>(ts.RESMP0 != 0);
         s.tiaFlags.template change<cule::atari::FLAG_TIA_RESMP1>(ts.RESMP1 != 0);
@@ -115,7 +115,8 @@ struct encode_states_functor
         UPDATE_FIELD(s.HM, cule::atari::FIELD_POSBL, ts.POSBL);
         s.CurrentGRP0 = ts.currentGRP0;
         s.CurrentGRP1 = ts.currentGRP1;
-        s.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ALLOW>(ts.HMOVEBlankEnabled != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ALLOW>(cart.allow_hmove_blanks());
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ENABLE>(ts.HMOVEBlankEnabled);
         s.lastHMOVEClock = ts.lastHMOVEClock;
         /* ds.M0CosmicArkMotionEnabled = INT_MAX; */
         /* ds.M0CosmicArkCounter = INT_MAX; */
@@ -244,7 +245,7 @@ struct decode_states_functor
         ds.POSBL = SELECT_FIELD(s.HM, cule::atari::FIELD_POSBL);
         ds.currentGRP0 = s.CurrentGRP0;
         ds.currentGRP1 = s.CurrentGRP1;
-        ds.HMOVEBlankEnabled = s.tiaFlags[cule::atari::FLAG_TIA_HMOVE_ALLOW];
+        ds.HMOVEBlankEnabled = s.tiaFlags[cule::atari::FLAG_TIA_HMOVE_ENABLE];
         ds.lastHMOVEClock = s.lastHMOVEClock;
         ds.M0CosmicArkMotionEnabled = INT_MAX;
         ds.M0CosmicArkCounter = INT_MAX;
