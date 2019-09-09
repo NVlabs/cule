@@ -300,6 +300,15 @@ void updateFrame(State_t& s, const int32_t& clock)
         {
             updateFrameScanline(s, clocksToUpdate, clocksFromStartOfScanLine - HBLANK, PF);
         }
+
+        // Handle HMOVE blanks if they are enabled
+        if(s.tiaFlags[FLAG_TIA_HMOVE_ENABLE] && (clocksFromStartOfScanLine < (HBLANK + 8)))
+        {
+            if((clocksToUpdate + clocksFromStartOfScanLine) >= (HBLANK + 8))
+            {
+                s.tiaFlags.clear(FLAG_TIA_HMOVE_ENABLE);
+            }
+        }
     }
     while(s.clockAtLastUpdate < temp_clock);
 
