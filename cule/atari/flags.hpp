@@ -200,10 +200,11 @@ enum TIA_FLAGS
 
     FLAG_TIA_PFBit        = 1 << 24,
     FLAG_TIA_COSMIC_ARK   = 1 << 25,
-    FLAG_RIOT_READ_INT    = 1 << 26,
-    FLAG_ALE_STARTED      = 1 << 27,
-    FLAG_ALE_TERMINAL     = 1 << 28,
-    FLAG_ALE_LOST_LIFE    = 1 << 29,
+    FLAG_TIA_Y_SHIFT      = 1 << 26,
+    FLAG_RIOT_READ_INT    = 1 << 27,
+    FLAG_ALE_STARTED      = 1 << 28,
+    FLAG_ALE_TERMINAL     = 1 << 29,
+    FLAG_ALE_LOST_LIFE    = 1 << 30,
 };
 
 enum : uint32_t

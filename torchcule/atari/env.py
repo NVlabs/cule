@@ -269,7 +269,6 @@ class Env(torchcule_atari.AtariEnv):
 
 	    # sanity checks
         assert actions.size(0) == self.num_envs
-        assert self.frameskip >= 2
 
         self.rewards.zero_()
         self.observations1.zero_()
@@ -286,7 +285,6 @@ class Env(torchcule_atari.AtariEnv):
             self.get_data(self.episodic_life, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
             if frame == (self.frameskip - 2):
                 self.generate_frames(self.rescale, False, self.num_channels, self.observations2.data_ptr())
-                torch.cuda.current_stream().synchronize()
 
         self.reset_states()
         self.generate_frames(self.rescale, True, self.num_channels, self.observations1.data_ptr())
@@ -304,3 +302,10 @@ class Env(torchcule_atari.AtariEnv):
         info = {'ale.lives': self.lives}
 
         return self.observations1, self.rewards, self.done, info
+
+    def get_states(self, indices):
+        from torchcule.atari.state import State
+        return [State(s) for s in super(Env, self).get_states([i for i in indices.cpu()])]
+
+    def set_states(self, indices, states):
+        super(Env, self).set_states([i for i in indices.cpu()], [s.state for s in states])

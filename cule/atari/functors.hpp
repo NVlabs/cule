@@ -56,6 +56,7 @@ struct initialize_functor
         const bool is_ntsc = cart->is_ntsc();
         const bool hmove_blanks = cart->allow_hmove_blanks();
         const games::GAME_TYPE game_id = cart->game_id();
+        const bool y_shift = game_id != games::GAME_UP_N_DOWN;
         const uint8_t * rom_buffer = cart->data();
 
         prng gen(rand_states_buffer[self.index()]);
@@ -79,6 +80,7 @@ struct initialize_functor
 
         s.tiaFlags.template change<FLAG_TIA_IS_NTSC>(is_ntsc);
         s.tiaFlags.template change<FLAG_TIA_HMOVE_ALLOW>(hmove_blanks);
+        s.tiaFlags.template change<FLAG_TIA_Y_SHIFT>(y_shift);
 
         s.tiaFlags.set(FLAG_ALE_TERMINAL);
         s.tiaFlags.set(FLAG_ALE_STARTED);
@@ -93,6 +95,7 @@ struct initialize_functor
         frame_state& fs = frame_states_buffer[self.index()];
         fs.tiaFlags.template change<FLAG_TIA_IS_NTSC>(is_ntsc);
         fs.tiaFlags.template change<FLAG_TIA_HMOVE_ALLOW>(hmove_blanks);
+        fs.tiaFlags.template change<FLAG_TIA_Y_SHIFT>(y_shift);
     }
 };
 

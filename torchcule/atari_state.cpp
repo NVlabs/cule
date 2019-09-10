@@ -121,6 +121,7 @@ struct encode_states_functor
         s.tiaFlags.template change<cule::atari::FLAG_TIA_COSMIC_ARK>(ts.M0CosmicArkMotionEnabled);
         s.M0CosmicArkCounter = ts.M0CosmicArkCounter;
         s.tiaFlags.template change<cule::atari::FLAG_TIA_DUMP>(ts.dumpEnabled != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_Y_SHIFT>(cart.game_id() != cule::atari::games::GAME_UP_N_DOWN);
         s.dumpDisabledCycle = ts.dumpDisabledCycle;
 
         s.bank = ts.bank;

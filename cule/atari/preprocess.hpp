@@ -65,7 +65,7 @@ template<typename State_t>
 CULE_ANNOTATION
 int32_t clockStartDisplay(State_t& s)
 {
-    return s.clockWhenFrameStarted + (228 * 34);
+    return s.clockWhenFrameStarted + (228 * (30 + (4 * s.tiaFlags[FLAG_TIA_Y_SHIFT])));
 }
 
 template<typename State_t>

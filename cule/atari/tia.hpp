@@ -82,7 +82,7 @@ static
 CULE_ANNOTATION
 int32_t clockStartDisplay(State_t& s)
 {
-    return s.clockWhenFrameStarted + (228 * 34);
+    return s.clockWhenFrameStarted + (228 * (30 + (4 * s.tiaFlags[FLAG_TIA_Y_SHIFT])));
 }
 
 template<typename State_t>
@@ -158,26 +158,13 @@ static
 CULE_ANNOTATION
 uint8_t paddle_value(State_t& s, const int32_t& r)
 {
-    uint8_t value = 0;
+    const bool dump = (r == Control_maximumResistance) || s.tiaFlags[FLAG_TIA_DUMP];
 
-    if(r == Control_minimumResistance)
-    {
-        value = 0x80;
-    }
-    else if((r == Control_maximumResistance) || s.tiaFlags[FLAG_TIA_DUMP])
-    {
-    }
-    else
-    {
-        const float t = 1.6f * r * 0.01e-6f;
-        uint32_t needed = uint32_t(t * 1.19e6f);
-        if(uint32_t(s.cpuCycles) > (s.dumpDisabledCycle + needed))
-        {
-            value = 0x80;
-        }
-    }
+    const float t = 1.6f * r * 0.01e-6f;
+    const uint32_t needed = uint32_t(t * 1.19e6f);
+    const bool threshold = uint32_t(s.cpuCycles) > (s.dumpDisabledCycle + needed);
 
-    return value;
+    return ((r == Control_minimumResistance) || (!dump && threshold)) << 7;
 }
 
 template<typename State_t>
