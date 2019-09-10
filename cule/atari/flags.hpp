@@ -199,15 +199,16 @@ enum TIA_FLAGS
     FLAG_TIA_BLBit        = 1 << 23,
 
     FLAG_TIA_PFBit        = 1 << 24,
-    FLAG_RIOT_READ_INT    = 1 << 25,
-    FLAG_ALE_STARTED      = 1 << 26,
-    FLAG_ALE_TERMINAL     = 1 << 27,
-    FLAG_ALE_LOST_LIFE    = 1 << 28,
+    FLAG_TIA_COSMIC_ARK   = 1 << 25,
+    FLAG_RIOT_READ_INT    = 1 << 26,
+    FLAG_ALE_STARTED      = 1 << 27,
+    FLAG_ALE_TERMINAL     = 1 << 28,
+    FLAG_ALE_LOST_LIFE    = 1 << 29,
 };
 
 enum : uint32_t
 {
-    FIELD_TIA_STATUS   = 0x01FBFF7F,
+    FIELD_TIA_STATUS   = 0x03FBFF7F,
     FIELD_TIA_ENABLED  = 0x01F80000,
     FIELD_FRAME_NUMBER = 0x0000FFFF,
     FIELD_START_ACTION = 0x00FF0000,

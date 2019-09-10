@@ -60,6 +60,7 @@ struct state
     uint32_t frameData;
     uint32_t rand;
     int32_t score;
+    uint8_t M0CosmicArkCounter;
 
     // pointers
     uint32_t * ram;

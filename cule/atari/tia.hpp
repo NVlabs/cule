@@ -40,6 +40,7 @@ void reset(State_t& s)
     s.collision = 0;
 
     s.lastHMOVEClock = 0;
+    s.M0CosmicArkCounter = 0;
 
     s.CurrentGRP0 = 0;
     s.CurrentGRP1 = 0;
@@ -307,6 +308,46 @@ void updateFrame(State_t& s, const int32_t& clock)
             if((clocksToUpdate + clocksFromStartOfScanLine) >= (HBLANK + 8))
             {
                 s.tiaFlags.clear(FLAG_TIA_HMOVE_ENABLE);
+            }
+        }
+
+        if(clocksToEndOfScanLine == 228)
+        {
+            // Yes, so set PF mask based on current CTRLPF reflection state
+            s.CurrentPFMask = &playfield_accessor(s.tiaFlags[FLAG_TIA_CTRLPF], 0);
+
+            const uint8_t MODE0 = SELECT_FIELD(s.PF, FIELD_NUSIZ0_MODE);
+            const uint8_t POSP0 = SELECT_FIELD(s.POS, FIELD_POSP0);
+            s.CurrentP0Mask = &player_mask_accessor(POSP0 & 0x03, 0, MODE0, 160 - (POSP0 & 0xFC));
+
+            const uint8_t MODE1 = SELECT_FIELD(s.PF, FIELD_NUSIZ1_MODE);
+            const uint8_t POSP1 = SELECT_FIELD(s.POS, FIELD_POSP1);
+            s.CurrentP1Mask = &player_mask_accessor(POSP1 & 0x03, 0, MODE1, 160 - (POSP1 & 0xFC));
+
+            if(s.tiaFlags[FLAG_TIA_COSMIC_ARK])
+            {
+                static uint8_t m[4] = {18, 33, 0, 17};
+                s.M0CosmicArkCounter = (s.M0CosmicArkCounter + 1) & 3;
+                uint8_t POSM0 = SELECT_FIELD(s.POS, FIELD_POSM0);
+                POSM0 = clamp(POSM0 - m[s.M0CosmicArkCounter]);
+                UPDATE_FIELD(s.POS, FIELD_POSM0, POSM0);
+
+                const uint8_t MODE = SELECT_FIELD(s.PF, FIELD_NUSIZ0_MODE);
+                const uint8_t SIZE = SELECT_FIELD(s.PF, FIELD_NUSIZ0_SIZE);
+
+                if(s.M0CosmicArkCounter == 1)
+                {
+                    s.CurrentM0Mask = &missle_accessor(POSM0 & 0x03, MODE, SIZE | 0x01, 160 - (POSM0 & 0xFC));
+                }
+                else if(s.M0CosmicArkCounter == 2)
+                {
+                    // Missle is disabled on this line
+                    s.CurrentM0Mask = &disabled_accessor(0);
+                }
+                else
+                {
+                    s.CurrentM0Mask = &missle_accessor(POSM0 & 0x03, MODE, SIZE, 160 - (POSM0 & 0xFC));
+                }
             }
         }
     }
@@ -817,6 +858,14 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
         case ADR_HMM0:    // Horizontal Motion Missle 0
         {
             uint8_t temp = value >> 4;
+
+            // Should we enabled TIA M0 "bug" used for stars in Cosmic Ark?
+            if(((3 * s.cpuCycles) == (s.lastHMOVEClock + 21 * 3)) && (SELECT_FIELD(s.HM, FIELD_HMM0) == 7) && (temp == 6))
+            {
+                s.tiaFlags.set(FLAG_TIA_COSMIC_ARK);
+                s.M0CosmicArkCounter = 0;
+            }
+
             UPDATE_FIELD(s.HM, FIELD_HMM0, temp);
 
             break;
@@ -949,6 +998,9 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
             s.CurrentBLMask = &ball_accessor(POSBL & 0x03, CTRLPF, 160 - (POSBL & 0xFC));
 
             s.lastHMOVEClock = 3 * s.cpuCycles;
+
+            // Disable TIA M0 "bug" used for stars in Cosmic ark
+            s.tiaFlags.clear(FLAG_TIA_COSMIC_ARK);
 
             break;
         }

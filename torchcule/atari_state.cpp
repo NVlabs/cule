@@ -118,8 +118,8 @@ struct encode_states_functor
         s.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ALLOW>(cart.allow_hmove_blanks());
         s.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ENABLE>(ts.HMOVEBlankEnabled);
         s.lastHMOVEClock = ts.lastHMOVEClock;
-        /* ds.M0CosmicArkMotionEnabled = INT_MAX; */
-        /* ds.M0CosmicArkCounter = INT_MAX; */
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_COSMIC_ARK>(ts.M0CosmicArkMotionEnabled);
+        s.M0CosmicArkCounter = ts.M0CosmicArkCounter;
         s.tiaFlags.template change<cule::atari::FLAG_TIA_DUMP>(ts.dumpEnabled != 0);
         s.dumpDisabledCycle = ts.dumpDisabledCycle;
 
@@ -247,8 +247,8 @@ struct decode_states_functor
         ds.currentGRP1 = s.CurrentGRP1;
         ds.HMOVEBlankEnabled = s.tiaFlags[cule::atari::FLAG_TIA_HMOVE_ENABLE];
         ds.lastHMOVEClock = s.lastHMOVEClock;
-        ds.M0CosmicArkMotionEnabled = INT_MAX;
-        ds.M0CosmicArkCounter = INT_MAX;
+        ds.M0CosmicArkMotionEnabled = s.tiaFlags[cule::atari::FLAG_TIA_COSMIC_ARK];
+        ds.M0CosmicArkCounter = s.M0CosmicArkCounter;
         ds.dumpEnabled = s.tiaFlags[cule::atari::FLAG_TIA_DUMP];
         ds.dumpDisabledCycle = s.dumpDisabledCycle;
 

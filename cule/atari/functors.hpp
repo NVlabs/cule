@@ -306,16 +306,11 @@ struct set_states_functor
         const State_t& s = input_states_buffer[self.index()];
         State_t& t = states_buffer[index];
 
-        // frame_states_buffer[index] = input_frame_states_buffer[self.index()];
-
         t.A = s.A;
         t.X = s.X;
         t.Y = s.Y;
         t.SP = s.SP;
         t.PC = s.PC;
-        // t.addr = s.addr;
-        // t.value = s.value;
-        // t.noise = s.noise;
 
         t.cpuCycles = s.cpuCycles;
         t.bank = s.bank;
@@ -352,6 +347,7 @@ struct set_states_functor
 
         t.frameData = s.frameData;
         t.score = s.score;
+        t.M0CosmicArkCounter = s.M0CosmicArkCounter;
 
         for(size_t i = 0; i < (128 / sizeof(uint32_t)); i++)
         {
