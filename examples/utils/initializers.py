@@ -53,16 +53,16 @@ def args_initialize(gpu, ngpus_per_node, args):
         args.lr = scaled_lr
 
     args.use_cuda_env = args.use_cuda_env and torch.cuda.is_available()
-    args.no_cuda_train = (not args.no_cuda_train) and torch.cuda.is_available()
+    args.cpu_train = args.cpu_train or (not torch.cuda.is_available())
     args.verbose = args.verbose and (args.rank == 0)
 
     np.random.seed(args.seed)
     torch.manual_seed(np.random.randint(1, 10000))
-    if args.use_cuda_env or (args.no_cuda_train == False):
+    if args.use_cuda_env or (not args.cpu_train):
         torch.cuda.manual_seed(np.random.randint(1, 10000))
 
     env_device = torch.device('cuda', args.gpu) if args.use_cuda_env else torch.device('cpu')
-    train_device = torch.device('cuda', args.gpu) if (args.no_cuda_train == False) else torch.device('cpu')
+    train_device = torch.device('cuda', args.gpu) if (not args.cpu_train) else torch.device('cpu')
 
     return env_device, train_device
 
@@ -122,6 +122,7 @@ def log_initialize(args, device):
         else:
             summary_writer = None
 
+    if args.verbose:
         print()
         print('PyTorch  : {}'.format(torch.__version__))
         print('CUDA     : {}'.format(torch.backends.cudnn.m.cuda))
@@ -130,15 +131,15 @@ def log_initialize(args, device):
         print('GYM      : {}'.format(gym.version.VERSION))
         print()
 
-    if device.type == 'cuda':
-        print(cuda_device_str(device.index), flush=True)
+        if device.type == 'cuda':
+            print(cuda_device_str(device.index), flush=True)
 
     return train_csv_file, train_csv_writer, eval_csv_file, eval_csv_writer, summary_writer
 
 def model_initialize(args, model, device):
     model = model.to(device).train()
 
-    if args.rank == 0:
+    if args.verbose:
         print(model)
         args.model_name = model.name()
 
@@ -147,12 +148,13 @@ def model_initialize(args, model, device):
     else:
         optimizer = optim.RMSprop(model.parameters(), lr=args.lr, eps=args.eps, alpha=args.alpha)
 
-    model, optimizer = amp.initialize(model, optimizer,
-                                      opt_level=args.opt_level,
-                                      loss_scale=args.loss_scale
-                                     )
+    if device.type == 'cuda':
+        model, optimizer = amp.initialize(model, optimizer,
+                                          opt_level=args.opt_level,
+                                          loss_scale=args.loss_scale
+                                         )
 
-    if args.distributed:
-        model = DDP(model, delay_allreduce=True)
+        if args.distributed:
+            model = DDP(model, delay_allreduce=True)
 
     return model, optimizer

@@ -4,6 +4,8 @@ import torch.nn.functional as F
 import numpy as np
 
 def test(args, policy_net, env):
+    device = next(policy_net.parameters()).device
+
     width, height = 84, 84
     num_ales = args.evaluation_episodes
 
@@ -28,8 +30,8 @@ def test(args, policy_net, env):
     else:
         lives = info['ale.lives'].clone()
 
-    states = torch.zeros((num_ales, args.num_stack, width, height), device='cuda', dtype=torch.float32)
-    states[:, -1] = observation.to(device='cuda', dtype=torch.float32)
+    states = torch.zeros((num_ales, args.num_stack, width, height), device=device, dtype=torch.float32)
+    states[:, -1] = observation.to(device=device, dtype=torch.float32)
 
     policy_net.eval()
 
@@ -54,10 +56,10 @@ def test(args, policy_net, env):
         fire_reset = new_lives < lives
         lives.copy_(new_lives)
 
-        observation = observation.to(device='cuda', dtype=torch.float32)
+        observation = observation.to(device=device, dtype=torch.float32)
 
         states[:, :-1].copy_(states[:, 1:].clone())
-        states *= (1.0 - done.to(device='cuda', dtype=torch.float32)).view(-1, *[1] * (observation.dim() - 1))
+        states *= (1.0 - done.to(device=device, dtype=torch.float32)).view(-1, *[1] * (observation.dim() - 1))
         states[:, -1].copy_(observation.view(-1, *states.size()[-2:]))
 
         # update episodic reward counters

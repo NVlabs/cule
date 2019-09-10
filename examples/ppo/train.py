@@ -230,9 +230,16 @@ def worker(gpu, ngpus_per_node, args):
 
                     loss = batch_value_loss * args.value_loss_coef + batch_policy_loss - batch_dist_entropy * args.entropy_coef
                     optimizer.zero_grad()
-                    with amp.scale_loss(loss, optimizer) as scaled_loss:
-                        scaled_loss.backward()
-                    torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), args.max_grad_norm)
+
+                    if args.cpu_train:
+                        loss.backward()
+                        master_params = model.parameters()
+                    else:
+                        with amp.scale_loss(loss, optimizer) as scaled_loss:
+                            scaled_loss.backward()
+                        master_params = amp.master_params(optimizer)
+
+                    torch.nn.utils.clip_grad_norm_(master_params, args.max_grad_norm)
                     optimizer.step()
 
                     total_value_loss += batch_value_loss.item()
