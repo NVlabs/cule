@@ -69,13 +69,14 @@ def args_initialize(gpu, ngpus_per_node, args):
 def env_initialize(args, device):
     if args.use_openai:
         train_env = create_vectorize_atari_env(args.env_name, args.seed, args.num_ales,
-                                               episode_life=args.episodic_life, clip_rewards=False,
+                                               episode_life=args.episodic_life,
+                                               clip_rewards=args.clip_rewards,
                                                max_frames=args.max_episode_length)
         observation = torch.from_numpy(train_env.reset()).squeeze(1)
     else:
         train_env = AtariEnv(args.env_name, args.num_ales, color_mode='gray', repeat_prob=0.0,
                              device=device, rescale=True, episodic_life=args.episodic_life,
-                             clip_rewards=False, frameskip=4)
+                             clip_rewards=args.clip_rewards, frameskip=4)
         train_env.train()
         observation = train_env.reset(initial_steps=args.ale_start_steps, verbose=args.verbose).squeeze(-1)
 

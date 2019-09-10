@@ -22,6 +22,7 @@ else:
 def add_global_parser_options(parser):
     parser.add_argument('--ale-start-steps', type=int, default=400, help='Number of steps used to initialize ALEs (default: 400)')
     parser.add_argument('--alpha', type=float, default=0.99, help='RMSprop optimizer alpha (default: 0.99)')
+    parser.add_argument('--clip-rewards', action='store_true', default=False, help='Clip rewards to {-1, 0, +1}')
     parser.add_argument('--env-name', type=str, default='PongNoFrameskip-v4', help='Atari game name')
     parser.add_argument('--eps', type=float, default=1e-5, help='RMSprop optimizer epsilon (default: 1e-5)')
     parser.add_argument('--episodic-life', action='store_true', default=False, help='use end of life as end of episode')
