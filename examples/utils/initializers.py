@@ -121,6 +121,8 @@ def log_initialize(args, device):
                 summary_writer.add_text(k, str(v))
         else:
             summary_writer = None
+    else:
+        train_csv_file, train_csv_writer, eval_csv_file, eval_csv_writer, summary_writer = None, None, None, None, None
 
     if args.verbose:
         print()
