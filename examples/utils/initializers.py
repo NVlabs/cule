@@ -133,8 +133,8 @@ def log_initialize(args, device):
         print('GYM      : {}'.format(gym.version.VERSION))
         print()
 
-        if device.type == 'cuda':
-            print(cuda_device_str(device.index), flush=True)
+    if device.type == 'cuda':
+        print('Rank {}\n{}'.format(args.rank, cuda_device_str(device.index)), flush=True)
 
     return train_csv_file, train_csv_writer, eval_csv_file, eval_csv_writer, summary_writer
 
