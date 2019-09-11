@@ -36,4 +36,3 @@ for n_test in range(0, 3):
 
         cmd_string = base_cmd_string + common_cmd_string
         os.system('python vtrace_main.py ' + cmd_string)
-        os.system('killall -9 python')
