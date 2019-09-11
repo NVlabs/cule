@@ -19,13 +19,13 @@ for n_test in range(0, 3):
 
         t_max = args.t_max
         if n_gpus[n_config] == 0:
-            base_cmd_string = ' ' # --use-openai'
+            base_cmd_string = ''
         if n_gpus[n_config] == 1:
             base_cmd_string = ' --use-cuda-env'
         if n_gpus[n_config] == 4:
             t_max = t_max * 4
             base_cmd_string = ' --multiprocessing-distributed --use-cuda-env'
-        base_cmd_string = base_cmd_string + ' --normalize ' #--use-openai-test-env'
+        base_cmd_string = base_cmd_string + ' --normalize '
         output_filename = 'a2cvtrace_' + args.game_name + '_nenvs_' + str(envs[n_config]) + '_nsteps_' + str(n_steps[n_config]) + \
                           '_nstepsperupdate_' + str(n_steps_per_update[n_config]) + '_nminibatches_' + str(n_minibatches[n_config]) + \
                           '_n_gpus_' + str(n_gpus[n_config]) + '_ntest_' + str(n_test) + '.csv'
