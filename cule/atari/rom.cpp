@@ -304,7 +304,8 @@ size_t rom::rom_size() const
 
 size_t rom::screen_height() const
 {
-    return is_ntsc() ? NTSC_SCREEN_HEIGHT : PAL_SCREEN_HEIGHT;
+    const bool is_pal_m = game_name().find("PAL-M") != std::string::npos;
+    return (is_ntsc() || is_pal_m) ? std::stoi(value_or_default(games::ROM_ATTR_Height)) : PAL_SCREEN_HEIGHT;
 }
 
 size_t rom::screen_width() const
