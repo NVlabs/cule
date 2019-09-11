@@ -629,7 +629,7 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
             }
             UPDATE_FIELD(s.POS, FIELD_POSP0, newx);
 
-            s.CurrentP0Mask = &player_mask_accessor(newx & 0x03, 0, MODE, 160 - (newx & 0xFC));
+            s.CurrentP0Mask = &player_mask_accessor(newx & 0x03, (when == 0) || (when == 1), MODE, 160 - (newx & 0xFC));
 
             break;
         }
@@ -655,7 +655,7 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
             }
             UPDATE_FIELD(s.POS, FIELD_POSP1, newx);
 
-            s.CurrentP1Mask = &player_mask_accessor(newx & 0x03, 0, MODE, 160 - (newx & 0xFC));
+            s.CurrentP1Mask = &player_mask_accessor(newx & 0x03, (when == 0) || (when == 1), MODE, 160 - (newx & 0xFC));
 
             break;
         }

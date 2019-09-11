@@ -22,7 +22,6 @@ struct encode_states_functor
 
         const AtariState& ts = src_states[index];
         cule::atari::state& s = dst_states[index];
-        /* cule::atari::frame_state& fs = dst_frame_states[index]; */
 
         s.resistance = ts.left_paddle;
         Environment_t::setFrameNumber(s, cule::atari::ENV_BASE_FRAMES + 10 + ts.frame_number);
@@ -36,6 +35,10 @@ struct encode_states_functor
         s.PC = ts.PC;
         UPDATE_FIELD(s.sysFlags.asBitField(), cule::atari::FIELD_SYS_INT, ts.IR);
 
+        s.sysFlags.template change<cule::atari::FLAG_CON_PADDLES>(cart.use_paddles());
+        s.sysFlags.template change<cule::atari::FLAG_CON_SWAP>(cart.swap_paddles() || cart.swap_ports());
+        s.sysFlags.template change<cule::atari::FLAG_SW_LEFT_DIFFLAG_A>(!cart.player_left_difficulty_B());
+        s.sysFlags.template change<cule::atari::FLAG_SW_RIGHT_DIFFLAG_A>(!cart.player_right_difficulty_B());
         s.sysFlags.template change<cule::atari::FLAG_NEGATIVE>(ts.N);
         s.sysFlags.template change<cule::atari::FLAG_OVERFLOW>(ts.V);
         s.sysFlags.template change<cule::atari::FLAG_BREAK>(ts.B);
@@ -57,10 +60,10 @@ struct encode_states_functor
 
         UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_TIMER, ts.timer);
         UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_SHIFT, ts.intervalShift);
+        UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_DDRA, ts.DDRA);
         s.cyclesWhenTimerSet = ts.cyclesWhenTimerSet;
         s.cyclesWhenInterruptReset = ts.cyclesWhenInterruptReset;
         s.tiaFlags.template change<cule::atari::FLAG_RIOT_READ_INT>(ts.timerReadAfterInterrupt != 0);
-        UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_DDRA, ts.DDRA);
         ALE_t::set_id(s, cart.game_id());
 
         s.clockWhenFrameStarted = ts.clockWhenFrameStarted;
