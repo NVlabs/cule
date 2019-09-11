@@ -23,7 +23,20 @@ except ImportError:
 
 def worker(gpu, ngpus_per_node, args):
     env_device, train_device = args_initialize(gpu, ngpus_per_node, args)
-    train_env, test_env, observation = env_initialize(args, env_device)
+
+    double_testing = True    
+
+    # openai and cule testing
+    if double_testing == False:
+         train_env, test_env, observation = env_initialize(args, env_device)
+    else:
+        use_openai_test_env = args.use_openai_test_env
+        args.use_openai_test_env = False
+        train_env, test_env, observation = env_initialize(args, env_device)
+        args.use_openai_test_env = True
+        _, test_env_oai, _ = env_initialize(args, env_device)
+        args.use_openai_test_env = use_openai_test_env
+
     train_csv_file, train_csv_writer, eval_csv_file, eval_csv_writer, summary_writer = log_initialize(args, train_device)
 
     model = ActorCritic(args.num_stack, train_env.action_space, normalize=args.normalize, name=args.env_name)
@@ -86,13 +99,35 @@ def worker(gpu, ngpus_per_node, args):
         T = args.world_size * update * num_frames_per_iter
         if (args.rank == 0) and (T >= evaluation_offset):
             evaluation_offset += args.evaluation_interval
-            eval_lengths, eval_rewards = test(args, model, test_env)
 
-            lmean, lmedian, lmin, lmax, lstd = gen_data(eval_lengths)
-            rmean, rmedian, rmin, rmax, rstd = gen_data(eval_rewards)
-            length_data = '(length) min/max/mean/median: {lmin:4.1f}/{lmax:4.1f}/{lmean:4.1f}/{lmedian:4.1f}'.format(lmin=lmin, lmax=lmax, lmean=lmean, lmedian=lmedian)
-            reward_data = '(reward) min/max/mean/median: {rmin:4.1f}/{rmax:4.1f}/{rmean:4.1f}/{rmedian:4.1f}'.format(rmin=rmin, rmax=rmax, rmean=rmean, rmedian=rmedian)
-            print('[training time: {}] {}'.format(format_time(total_time), ' --- '.join([length_data, reward_data])))
+            if double_testing == False:
+                eval_lengths, eval_rewards = test(args, model, test_env)
+
+                lmean, lmedian, lmin, lmax, lstd = gen_data(eval_lengths)
+                rmean, rmedian, rmin, rmax, rstd = gen_data(eval_rewards)
+                length_data = '(length) min/max/mean/median: {lmin:4.1f}/{lmax:4.1f}/{lmean:4.1f}/{lmedian:4.1f}'.format(lmin=lmin, lmax=lmax, lmean=lmean, lmedian=lmedian)
+                reward_data = '(reward) min/max/mean/median: {rmin:4.1f}/{rmax:4.1f}/{rmean:4.1f}/{rmedian:4.1f}'.format(rmin=rmin, rmax=rmax, rmean=rmean, rmedian=rmedian)
+                print('[training time: {}] {}'.format(format_time(total_time), ' --- '.join([length_data, reward_data])))
+
+            else:
+
+                args.use_openai_test_env = False
+                eval_lengths, eval_rewards = test(args, model, test_env)
+                lmean, lmedian, lmin, lmax, lstd = gen_data(eval_lengths)
+                rmean, rmedian, rmin, rmax, rstd = gen_data(eval_rewards)
+                length_data = '(length) min/max/mean/median: {lmin:4.1f}/{lmax:4.1f}/{lmean:4.1f}/{lmedian:4.1f}'.format(lmin=lmin, lmax=lmax, lmean=lmean, lmedian=lmedian)
+                reward_data = '(reward) min/max/mean/median: {rmin:4.1f}/{rmax:4.1f}/{rmean:4.1f}/{rmedian:4.1f}'.format(rmin=rmin, rmax=rmax, rmean=rmean, rmedian=rmedian)
+                print('[CuLE CPU] [training time: {}] {}'.format(format_time(total_time), ' --- '.join([length_data, reward_data])))
+
+                args.use_openai_test_env = True
+                eval_lengths, eval_rewards = test(args, model, test_env_oai)
+                lmean, lmedian, lmin, lmax, lstd = gen_data(eval_lengths)
+                rmean, rmedian, rmin, rmax, rstd = gen_data(eval_rewards)
+                length_data = '(length) min/max/mean/median: {lmin:4.1f}/{lmax:4.1f}/{lmean:4.1f}/{lmedian:4.1f}'.format(lmin=lmin, lmax=lmax, lmean=lmean, lmedian=lmedian)
+                reward_data = '(reward) min/max/mean/median: {rmin:4.1f}/{rmax:4.1f}/{rmean:4.1f}/{rmedian:4.1f}'.format(rmin=rmin, rmax=rmax, rmean=rmean, rmedian=rmedian)
+                print('[OpAI CPU] [training time: {}] {}'.format(format_time(total_time), ' --- '.join([length_data, reward_data])))
+
+                args.use_openai_test_env = use_openai_test_env
 
             if eval_csv_writer and eval_csv_file:
                 eval_csv_writer.writerow([T, total_time, rmean, rmedian, rmin, rmax, rstd, lmean, lmedian, lmin, lmax, lstd])
