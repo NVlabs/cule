@@ -7,7 +7,7 @@ parser.add_argument('--game-name', default='PongNoFrameskip-v4', help='name of t
 parser.add_argument('--t-max', default=20, type=int, help='number of training frames (default=20M)')
 args = parser.parse_args()
 
-envs = [120, 120, 120, 1200, 1200, 1200, 1200, 1200]
+envs = [120, 120, 120, 1200, 1200, 1200, 1200, 1200*4]
 n_steps = [5, 5, 20, 20, 5, 5, 20, 20]
 n_steps_per_update = [5, 1, 1, 1, 5, 1, 1, 1]
 n_minibatches = [1, 5, 20, 20, 1, 5, 20, 20]
@@ -36,3 +36,4 @@ for n_test in range(0, 3):
 
         cmd_string = base_cmd_string + common_cmd_string
         os.system('python vtrace_main.py ' + cmd_string)
+        os.system('killall -9 python')
