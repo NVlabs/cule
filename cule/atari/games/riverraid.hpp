@@ -100,24 +100,30 @@ CULE_ANNOTATION
     s.tiaFlags.template change<FLAG_ALE_STARTED>(byte_val == 0x59);
 }
 
+CULE_ANNOTATION
+int32_t vals_to_digits(const uint8_t& i)
+{
+    return (int32_t(i) / 8) * (((int32_t(i) % 8) == 0) && (i <= 72));
+}
+
 template<typename State>
 CULE_ANNOTATION
 int32_t score(State& s)
 {
     // update the reward
     int32_t m_score = 0;
-    int32_t m_digit = cule::atari::ram::read(s.ram, 87) / 8;
+    int32_t m_digit = vals_to_digits(cule::atari::ram::read(s.ram, 87));
 
     m_score += m_digit;
-    m_digit = cule::atari::ram::read(s.ram, 85) / 8;
+    m_digit = vals_to_digits(cule::atari::ram::read(s.ram, 85));
     m_score += 10 * m_digit;
-    m_digit = cule::atari::ram::read(s.ram, 83) / 8;
+    m_digit = vals_to_digits(cule::atari::ram::read(s.ram, 83));
     m_score += 100 * m_digit;
-    m_digit = cule::atari::ram::read(s.ram, 81) / 8;
+    m_digit = vals_to_digits(cule::atari::ram::read(s.ram, 81));
     m_score += 1000 * m_digit;
-    m_digit = cule::atari::ram::read(s.ram, 79) / 8;
+    m_digit = vals_to_digits(cule::atari::ram::read(s.ram, 79));
     m_score += 10000 * m_digit;
-    m_digit = cule::atari::ram::read(s.ram, 77) / 8;
+    m_digit = vals_to_digits(cule::atari::ram::read(s.ram, 77));
     m_score += 100000 * m_digit;
 
     return m_score;

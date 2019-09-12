@@ -240,9 +240,10 @@ PYBIND11_MODULE(torchcule_atari, m) {
                          reinterpret_cast<int32_t*>(livesBuffer));
         }
     )
-    .def("generate_frames", [](AtariEnv& env, const bool rescale, const size_t num_channels, uint64_t imageBuffer)
+    .def("generate_frames", [](AtariEnv& env, const bool rescale, const bool last_frame, const size_t num_channels, uint64_t imageBuffer)
         {
             env.generate_frames(rescale,
+                                last_frame,
                                 num_channels,
                                 reinterpret_cast<uint8_t*>(imageBuffer));
         }
@@ -264,16 +265,16 @@ PYBIND11_MODULE(torchcule_atari, m) {
             // env.sync_this_stream(stream);
         }
     )
-    .def("get_states", [](AtariEnv& env, const size_t N, uint64_t indices)
+    .def("get_states", [](AtariEnv& env, const std::vector<int32_t>& indices)
         {
-            std::vector<AtariState> atari_states(N);
-            env.get_states(N, reinterpret_cast<int32_t*>(indices), atari_states.data());
+            std::vector<AtariState> atari_states(indices.size());
+            env.get_states(indices.size(), indices.data(), atari_states.data());
             return atari_states;
         }
     )
-    .def("set_states", [](AtariEnv& env, const size_t N, uint64_t indices, const std::vector<AtariState>& atari_states)
+    .def("set_states", [](AtariEnv& env, const std::vector<int32_t>& indices, const std::vector<AtariState>& atari_states)
         {
-            env.set_states(N, reinterpret_cast<int32_t*>(indices), atari_states.data());
+            env.set_states(indices.size(), indices.data(), atari_states.data());
         }
     )
     .def("set_cuda", &AtariEnv::set_cuda)

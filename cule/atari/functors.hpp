@@ -56,6 +56,7 @@ struct initialize_functor
         const bool is_ntsc = cart->is_ntsc();
         const bool hmove_blanks = cart->allow_hmove_blanks();
         const games::GAME_TYPE game_id = cart->game_id();
+        const bool y_shift = game_id != games::GAME_UP_N_DOWN;
         const uint8_t * rom_buffer = cart->data();
 
         prng gen(rand_states_buffer[self.index()]);
@@ -79,6 +80,7 @@ struct initialize_functor
 
         s.tiaFlags.template change<FLAG_TIA_IS_NTSC>(is_ntsc);
         s.tiaFlags.template change<FLAG_TIA_HMOVE_ALLOW>(hmove_blanks);
+        s.tiaFlags.template change<FLAG_TIA_Y_SHIFT>(y_shift);
 
         s.tiaFlags.set(FLAG_ALE_TERMINAL);
         s.tiaFlags.set(FLAG_ALE_STARTED);
@@ -93,6 +95,7 @@ struct initialize_functor
         frame_state& fs = frame_states_buffer[self.index()];
         fs.tiaFlags.template change<FLAG_TIA_IS_NTSC>(is_ntsc);
         fs.tiaFlags.template change<FLAG_TIA_HMOVE_ALLOW>(hmove_blanks);
+        fs.tiaFlags.template change<FLAG_TIA_Y_SHIFT>(y_shift);
     }
 };
 
@@ -218,6 +221,7 @@ struct preprocess_functor
 {
     template<class Agent, class State_t>
     void operator()(Agent& self,
+                    const bool last_frame,
                     const uint32_t* tia_update_buffer,
                     const uint32_t* cached_tia_update_buffer,
                     State_t* states_buffer,
@@ -235,7 +239,7 @@ struct preprocess_functor
 
         const bool is_terminal = s.tiaFlags[FLAG_ALE_TERMINAL];
         const bool is_started  = s.tiaFlags[FLAG_ALE_STARTED];
-        if(is_started && is_terminal)
+        if(last_frame && is_started && is_terminal)
         {
             CULE_ASSERT(cached_tia_update_buffer != nullptr);
             CULE_ASSERT(cache_index_buffer != nullptr);
@@ -305,16 +309,11 @@ struct set_states_functor
         const State_t& s = input_states_buffer[self.index()];
         State_t& t = states_buffer[index];
 
-        // frame_states_buffer[index] = input_frame_states_buffer[self.index()];
-
         t.A = s.A;
         t.X = s.X;
         t.Y = s.Y;
         t.SP = s.SP;
         t.PC = s.PC;
-        // t.addr = s.addr;
-        // t.value = s.value;
-        // t.noise = s.noise;
 
         t.cpuCycles = s.cpuCycles;
         t.bank = s.bank;
@@ -351,6 +350,7 @@ struct set_states_functor
 
         t.frameData = s.frameData;
         t.score = s.score;
+        t.M0CosmicArkCounter = s.M0CosmicArkCounter;
 
         for(size_t i = 0; i < (128 / sizeof(uint32_t)); i++)
         {

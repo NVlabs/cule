@@ -119,7 +119,7 @@ def maybe_restart(args):
 
 # argparse initialization adapted from example at
 # https://stackoverflow.com/questions/3609852/which-is-the-best-way-to-allow-configuration-options-be-overridden-at-the-comman
-def main(argv=sys.argv[1:]):
+def dqn_main(argv=sys.argv[1:]):
     conf_parser = argparse.ArgumentParser(description=__doc__,
             formatter_class=argparse.RawDescriptionHelpFormatter,
             add_help=False)
@@ -158,5 +158,4 @@ def main(argv=sys.argv[1:]):
     maybe_restart(args)
 
 if __name__ == "__main__":
-    sys.exit(main())
-
+    dqn_main()

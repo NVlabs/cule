@@ -62,7 +62,7 @@ reset_states()
 void
 AtariEnv::
 get_states(const size_t num_states,
-           const int32_t* indices,
+           const int32_t* indices_ptr,
            AtariState* states_ptr)
 {
     agency::vector<cule::atari::state> output_states(num_states);
@@ -74,8 +74,9 @@ get_states(const size_t num_states,
         agency::vector<cule::atari::state, agency::cuda::allocator<cule::atari::state>> output_states_gpu(num_states);
         agency::vector<cule::atari::frame_state, agency::cuda::allocator<cule::atari::frame_state>> output_frame_states_gpu(num_states);
         agency::vector<uint8_t, agency::cuda::allocator<uint8_t>> output_states_ram_gpu(256 * num_states);
+        agency::vector<int32_t, agency::cuda::allocator<int32_t>> indices_gpu(indices_ptr, indices_ptr + num_states);
 
-        super_t::get_states(get_policy<cule_policy>(), num_states, indices, output_states_gpu.data(), output_frame_states_gpu.data(), output_states_ram_gpu.data());
+        super_t::get_states(get_policy<cule_policy>(), num_states, indices_gpu.data(), output_states_gpu.data(), output_frame_states_gpu.data(), output_states_ram_gpu.data());
         get_policy<cule_policy>().sync();
 
         agency::detail::copy(get_policy<agency::parallel_execution_policy>(), output_states_gpu.begin(), output_states_gpu.end(), output_states.begin());
@@ -85,7 +86,7 @@ get_states(const size_t num_states,
     }
     else
     {
-        super_t::get_states(get_policy<agency::parallel_execution_policy>(), num_states, indices, output_states.data(), output_frame_states.data(), nullptr);
+        super_t::get_states(get_policy<agency::parallel_execution_policy>(), num_states, indices_ptr, output_states.data(), output_frame_states.data(), nullptr);
     }
 
     agency::bulk_invoke(get_policy<agency::parallel_execution_policy>()(num_states),
@@ -101,17 +102,17 @@ get_states(const size_t num_states,
 void
 AtariEnv::
 set_states(const size_t num_states,
-           const int32_t* indices,
-           const AtariState* states)
+           const int32_t* indices_ptr,
+           const AtariState* states_ptr)
 {
     agency::vector<cule::atari::state> input_states(num_states);
     agency::vector<cule::atari::frame_state> input_frame_states(num_states);
     agency::vector<uint8_t> input_states_ram(256 * num_states);
 
-    agency::bulk_invoke(get_policy<agency::parallel_execution_policy>()(num_states),
+    agency::bulk_invoke(agency::seq(num_states),
                         encode_states_functor{},
                         this->cart,
-                        states,
+                        states_ptr,
                         input_states.data(),
                         input_frame_states.data(),
                         input_states_ram.data());
@@ -121,13 +122,16 @@ set_states(const size_t num_states,
         agency::vector<cule::atari::state, agency::cuda::allocator<cule::atari::state>> input_states_gpu(input_states.begin(), input_states.end());
         agency::vector<cule::atari::frame_state, agency::cuda::allocator<cule::atari::frame_state>> input_frame_states_gpu(input_frame_states.begin(), input_frame_states.end());
         agency::vector<uint8_t, agency::cuda::allocator<uint8_t>> input_states_ram_gpu(input_states_ram.begin(), input_states_ram.end());
+        agency::vector<int32_t, agency::cuda::allocator<int32_t>> indices_gpu(indices_ptr, indices_ptr + num_states);
 
-        super_t::set_states(get_policy<cule_policy>(), num_states, indices, input_states_gpu.data(), input_frame_states_gpu.data(), input_states_ram_gpu.data());
+        super_t::set_states(get_policy<cule_policy>(), num_states, indices_gpu.data(), input_states_gpu.data(),
+                            input_frame_states_gpu.data(), input_states_ram_gpu.data());
         get_policy<cule_policy>().sync();
     }
     else
     {
-        super_t::set_states(get_policy<agency::parallel_execution_policy>(), num_states, indices, input_states.data(), input_frame_states.data(), input_states_ram.data());
+        super_t::set_states(get_policy<agency::parallel_execution_policy>(), num_states, indices_ptr,
+                            input_states.data(), input_frame_states.data(), input_states_ram.data());
     }
 }
 
@@ -182,16 +186,17 @@ two_step(const cule::atari::Action* playerABuffer,
 void
 AtariEnv::
 generate_frames(const bool rescale,
+                const bool last_frame,
                 const size_t num_channels,
                 uint8_t* imageBuffer)
 {
     if(use_cuda)
     {
-        super_t::generate_frames(get_policy<cule_policy>(), rescale, num_channels, imageBuffer);
+        super_t::generate_frames(get_policy<cule_policy>(), rescale, last_frame, num_channels, imageBuffer);
     }
     else
     {
-        super_t::generate_frames(get_policy<agency::parallel_execution_policy>(), rescale, num_channels, imageBuffer);
+        super_t::generate_frames(get_policy<agency::parallel_execution_policy>(), rescale, last_frame, num_channels, imageBuffer);
     }
 }
 

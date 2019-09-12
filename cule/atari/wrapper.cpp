@@ -146,10 +146,11 @@ template<typename ExecutionPolicy>
 void
 wrapper::
 preprocess(ExecutionPolicy&& policy,
+           const bool last_frame,
            const uint32_t* tiaBuffer,
            uint8_t* frameBuffer)
 {
-    ROM_SWITCH(dispatch::preprocess, policy, *this, tiaBuffer, frameBuffer);
+    ROM_SWITCH(dispatch::preprocess, policy, *this, last_frame, tiaBuffer, frameBuffer);
 }
 
 template<typename ExecutionPolicy>
@@ -157,10 +158,11 @@ void
 wrapper::
 generate_frames(ExecutionPolicy&& policy,
                 const bool rescale,
+                const bool last_frame,
                 const size_t num_channels,
                 uint8_t* imageBuffer)
 {
-    preprocess(policy, tia_update_ptr, frame_ptr);
+    preprocess(policy, last_frame, tia_update_ptr, frame_ptr);
     dispatch::generate_frames(policy, *this, rescale, num_channels, imageBuffer);
 }
 

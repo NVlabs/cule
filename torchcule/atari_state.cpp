@@ -22,7 +22,6 @@ struct encode_states_functor
 
         const AtariState& ts = src_states[index];
         cule::atari::state& s = dst_states[index];
-        /* cule::atari::frame_state& fs = dst_frame_states[index]; */
 
         s.resistance = ts.left_paddle;
         Environment_t::setFrameNumber(s, cule::atari::ENV_BASE_FRAMES + 10 + ts.frame_number);
@@ -36,6 +35,10 @@ struct encode_states_functor
         s.PC = ts.PC;
         UPDATE_FIELD(s.sysFlags.asBitField(), cule::atari::FIELD_SYS_INT, ts.IR);
 
+        s.sysFlags.template change<cule::atari::FLAG_CON_PADDLES>(cart.use_paddles());
+        s.sysFlags.template change<cule::atari::FLAG_CON_SWAP>(cart.swap_paddles() || cart.swap_ports());
+        s.sysFlags.template change<cule::atari::FLAG_SW_LEFT_DIFFLAG_A>(!cart.player_left_difficulty_B());
+        s.sysFlags.template change<cule::atari::FLAG_SW_RIGHT_DIFFLAG_A>(!cart.player_right_difficulty_B());
         s.sysFlags.template change<cule::atari::FLAG_NEGATIVE>(ts.N);
         s.sysFlags.template change<cule::atari::FLAG_OVERFLOW>(ts.V);
         s.sysFlags.template change<cule::atari::FLAG_BREAK>(ts.B);
@@ -57,10 +60,10 @@ struct encode_states_functor
 
         UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_TIMER, ts.timer);
         UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_SHIFT, ts.intervalShift);
+        UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_DDRA, ts.DDRA);
         s.cyclesWhenTimerSet = ts.cyclesWhenTimerSet;
         s.cyclesWhenInterruptReset = ts.cyclesWhenInterruptReset;
         s.tiaFlags.template change<cule::atari::FLAG_RIOT_READ_INT>(ts.timerReadAfterInterrupt != 0);
-        UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_DDRA, ts.DDRA);
         ALE_t::set_id(s, cart.game_id());
 
         s.clockWhenFrameStarted = ts.clockWhenFrameStarted;
@@ -87,7 +90,7 @@ struct encode_states_functor
         s.tiaFlags.template change<cule::atari::FLAG_TIA_CTRLPF>((ts.CTRLPF & 0x01) == 0x01);
         /* ds.playfieldPriorityAndScore = fs.playfieldPriorityAndScore; */
         s.tiaFlags.template change<cule::atari::FLAG_TIA_REFP0>(ts.REFP0 != 0);
-        s.tiaFlags.template change<cule::atari::FLAG_TIA_REFP1>(ts.REFP0 != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_REFP1>(ts.REFP1 != 0);
         UPDATE_FIELD(s.PF,  cule::atari::FIELD_PFALL, ts.PF);
         UPDATE_FIELD(s.GRP, cule::atari::FIELD_GRP0, ts.GRP0);
         UPDATE_FIELD(s.GRP, cule::atari::FIELD_GRP1, ts.GRP1);
@@ -103,7 +106,7 @@ struct encode_states_functor
         UPDATE_FIELD(s.HM, cule::atari::FIELD_HMM1, ts.HMM1);
         UPDATE_FIELD(s.HM, cule::atari::FIELD_HMBL, ts.HMBL);
         s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELP0>(ts.VDELP0 != 0);
-        s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELP1>(ts.VDELP0 != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELP1>(ts.VDELP1 != 0);
         s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELBL>(ts.VDELBL != 0);
         s.tiaFlags.template change<cule::atari::FLAG_TIA_RESMP0>(ts.RESMP0 != 0);
         s.tiaFlags.template change<cule::atari::FLAG_TIA_RESMP1>(ts.RESMP1 != 0);
@@ -115,11 +118,13 @@ struct encode_states_functor
         UPDATE_FIELD(s.HM, cule::atari::FIELD_POSBL, ts.POSBL);
         s.CurrentGRP0 = ts.currentGRP0;
         s.CurrentGRP1 = ts.currentGRP1;
-        s.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ALLOW>(ts.HMOVEBlankEnabled != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ALLOW>(cart.allow_hmove_blanks());
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ENABLE>(ts.HMOVEBlankEnabled);
         s.lastHMOVEClock = ts.lastHMOVEClock;
-        /* ds.M0CosmicArkMotionEnabled = INT_MAX; */
-        /* ds.M0CosmicArkCounter = INT_MAX; */
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_COSMIC_ARK>(ts.M0CosmicArkMotionEnabled);
+        s.M0CosmicArkCounter = ts.M0CosmicArkCounter;
         s.tiaFlags.template change<cule::atari::FLAG_TIA_DUMP>(ts.dumpEnabled != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_Y_SHIFT>(cart.game_id() != cule::atari::games::GAME_UP_N_DOWN);
         s.dumpDisabledCycle = ts.dumpDisabledCycle;
 
         s.bank = ts.bank;
@@ -244,10 +249,10 @@ struct decode_states_functor
         ds.POSBL = SELECT_FIELD(s.HM, cule::atari::FIELD_POSBL);
         ds.currentGRP0 = s.CurrentGRP0;
         ds.currentGRP1 = s.CurrentGRP1;
-        ds.HMOVEBlankEnabled = s.tiaFlags[cule::atari::FLAG_TIA_HMOVE_ALLOW];
+        ds.HMOVEBlankEnabled = s.tiaFlags[cule::atari::FLAG_TIA_HMOVE_ENABLE];
         ds.lastHMOVEClock = s.lastHMOVEClock;
-        ds.M0CosmicArkMotionEnabled = INT_MAX;
-        ds.M0CosmicArkCounter = INT_MAX;
+        ds.M0CosmicArkMotionEnabled = s.tiaFlags[cule::atari::FLAG_TIA_COSMIC_ARK];
+        ds.M0CosmicArkCounter = s.M0CosmicArkCounter;
         ds.dumpEnabled = s.tiaFlags[cule::atari::FLAG_TIA_DUMP];
         ds.dumpDisabledCycle = s.dumpDisabledCycle;
 

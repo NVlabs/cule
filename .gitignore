@@ -17,4 +17,6 @@ dist
 # model files
 *.pth
 
-examples/dqn/runs
+# data files
+*.csv
+examples/*/runs

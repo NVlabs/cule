@@ -20,11 +20,11 @@ def ppo_parser_options(parser):
 
 def ppo_main():
     if sys.version_info.major == 3:
-        from train import train
+        from train import worker
     else:
-        train = None
+        worker = None
 
-    sys.exit(main(ppo_parser_options, train))
+    sys.exit(main(ppo_parser_options, worker))
 
 if __name__ == '__main__':
     ppo_main()

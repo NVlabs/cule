@@ -13,7 +13,8 @@ try:
     codes = sorted(set([str(p.major) + str(p.minor) for p in get_device_props()]))
     arch_gencode = ['-arch=sm_' + codes[0]] + ['-gencode=arch=compute_{0},code=sm_{0}'.format(code) for code in codes]
 except:
-    print('Warning: Could not find nvcc in path. Compiling with sm_70 by default.')
+    print('Warning: Could not find nvcc in path. Compiling with default support for all architectures.'
+          'This may result in exceedingly long startup times during initialization on the GPU.')
     arch_gencode = []
 
 base_dir = os.path.dirname(os.path.realpath(__file__))

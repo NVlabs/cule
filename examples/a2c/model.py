@@ -1,9 +1,14 @@
 import numpy as np
-
+import os
 import re
+import sys
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+_path = os.path.abspath(os.path.pardir)
+if not _path in sys.path:
+    sys.path = [_path] + sys.path
 
 from utils.openai.vec_normalize import RunningMeanStd
 
