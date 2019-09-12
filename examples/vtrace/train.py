@@ -24,13 +24,12 @@ except ImportError:
 def worker(gpu, ngpus_per_node, args):
     env_device, train_device = args_initialize(gpu, ngpus_per_node, args)
 
-    double_testing = True    
+    double_testing = True
 
     # openai and cule testing
     if double_testing == False:
-         train_env, test_env, observation = env_initialize(args, env_device)
          train_csv_file, train_csv_writer, eval_csv_file, eval_csv_writer, summary_writer = log_initialize(args, train_device)
-
+         train_env, test_env, observation = env_initialize(args, env_device)
     else:
         use_openai_test_env = args.use_openai_test_env
         output_filename = args.output_filename

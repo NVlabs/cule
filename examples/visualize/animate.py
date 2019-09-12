@@ -9,7 +9,6 @@ from torchcule.atari import Env, Rom
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='CuLE')
     parser.add_argument('--color', type=str, default='rgb', help='Color mode (rgb or gray)')
-    parser.add_argument('--clip-rewards', action='store_true', help='Clip rewards to be {-1, 0, +1}')
     parser.add_argument('--debug', action='store_true', help='Single step through frames for debugging')
     parser.add_argument('--env-name', type=str, help='Atari Game')
     parser.add_argument('--gpu', type=int, default=0, help='GPU ID (default: 0)')
@@ -24,8 +23,8 @@ if __name__ == '__main__':
     device = torch.device('cuda:{}'.format(args.gpu) if args.use_cuda else 'cpu')
     debug  = args.debug
 
-    env = Env(args.env_name, args.num_envs, args.color, device=device, rescale=args.rescale,
-              episodic_life=True, clip_rewards=args.clip_rewards, repeat_prob=0.0)
+    env = Env(args.env_name, args.num_envs, args.color, device=device,
+              rescale=args.rescale, episodic_life=True, repeat_prob=0.0)
     print(env.cart)
 
     if args.training:

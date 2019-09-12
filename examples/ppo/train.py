@@ -48,8 +48,8 @@ class data_prefetcher():
 
 def worker(gpu, ngpus_per_node, args):
     env_device, train_device = args_initialize(gpu, ngpus_per_node, args)
-    train_env, test_env, observation = env_initialize(args, env_device)
     train_csv_file, train_csv_writer, eval_csv_file, eval_csv_writer, summary_writer = log_initialize(args, train_device)
+    train_env, test_env, observation = env_initialize(args, env_device)
 
     model = ActorCritic(args.num_stack, train_env.action_space, normalize=args.normalize, name=args.env_name)
     model, optimizer = model_initialize(args, model, train_device)
