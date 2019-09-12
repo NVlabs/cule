@@ -139,7 +139,7 @@ void
 AtariEnv::
 step(const bool fire_reset,
      const cule::atari::Action* actionsBuffer,
-     uint8_t* doneBuffer)
+     bool* doneBuffer)
 {
     if(use_cuda)
     {
@@ -154,8 +154,8 @@ step(const bool fire_reset,
 void
 AtariEnv::
 get_data(const bool episodic_life,
-         uint8_t* doneBuffer,
-         int32_t* rewardsBuffer,
+         bool* doneBuffer,
+         float* rewardsBuffer,
          int32_t* livesBuffer)
 {
     if(use_cuda)

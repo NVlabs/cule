@@ -35,14 +35,14 @@ class AtariEnv : public cule::atari::wrapper
 
       void step(const bool fire_reset,
                 const cule::atari::Action* actionsBuffer,
-                uint8_t* doneBuffer);
+                bool* doneBuffer);
 
       void two_step(const cule::atari::Action* playerABuffer,
                     const cule::atari::Action* playerBBuffer);
 
       void get_data(const bool episodic_life,
-                    uint8_t* doneBuffer,
-                    int32_t* rewardsBuffer,
+                    bool* doneBuffer,
+                    float* rewardsBuffer,
                     int32_t* livesBuffer);
 
       void generate_frames(const bool rescale,
