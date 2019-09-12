@@ -116,7 +116,7 @@ wrapper::
 step(ExecutionPolicy&& policy,
      const bool fire_reset,
      const Action* actionsBuffer,
-     uint8_t* doneBuffer)
+     bool* doneBuffer)
 {
     ROM_SWITCH(dispatch::step, policy, *this, fire_reset, actionsBuffer, doneBuffer)
 }
@@ -135,8 +135,8 @@ void
 wrapper::
 get_data(ExecutionPolicy&& policy,
          const bool episodic_life,
-         uint8_t* doneBuffer,
-         int32_t* rewardsBuffer,
+         bool* doneBuffer,
+         float* rewardsBuffer,
          int32_t* livesBuffer)
 {
     ROM_SWITCH(dispatch::get_data, policy, *this, episodic_life, doneBuffer, rewardsBuffer, livesBuffer)

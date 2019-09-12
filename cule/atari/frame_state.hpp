@@ -11,6 +11,7 @@ namespace atari
 
 struct frame_state
 {
+    // TIA vars
     uint32_t Color;
     uint32_t GRP;
     uint32_t HM;
@@ -29,6 +30,8 @@ struct frame_state
     uint16_t cpuCycles;
 
     tia_flag_t tiaFlags;
+
+    uint8_t M0CosmicArkCounter;
 
     uint8_t* framePointer;
     const uint32_t* srcBuffer;

@@ -73,13 +73,13 @@ public:
     void step(ExecutionPolicy&& policy,
               const bool fire_reset,
               const Action* actionsBuffer,
-              uint8_t* doneBuffer);
+              bool* doneBuffer);
 
     template<typename ExecutionPolicy>
     void get_data(ExecutionPolicy&& policy,
                   const bool episodic_life,
-                  uint8_t* doneBuffer,
-                  int32_t* rewardsBuffer,
+                  bool* doneBuffer,
+                  float* rewardsBuffer,
                   int32_t* livesBuffer);
 
     template<typename ExecutionPolicy>

@@ -168,7 +168,7 @@ void step_kernel(const uint32_t num_envs,
                  uint8_t* ram_buffer,
                  uint32_t* tia_update_buffer,
                  const Action* actions_buffer,
-                 uint8_t* done_buffer)
+                 bool* done_buffer)
 {
     enum
     {
@@ -238,8 +238,8 @@ void get_data_kernel(const int32_t num_envs,
                      const bool episodic_life,
                      State_t* states_buffer,
                      const uint8_t* ram_buffer,
-                     uint8_t* done_buffer,
-                     int32_t* rewards_buffer,
+                     bool* done_buffer,
+                     float* rewards_buffer,
                      int32_t* lives_buffer)
 {
 
@@ -339,12 +339,6 @@ void apply_palette_kernel(const int32_t num_envs,
             dst_buffer[0] = uint8_t(gpu_NTSCPalette[color + 1] & 0xFF);
         }
     }
-}
-
-CULE_ANNOTATION
-uint8_t extract_Y(const uint32_t& rgb)
-{
-    return uint8_t((0.299 * float((rgb >> 16) & 0xFF)) + (0.587 * float((rgb >> 8) & 0xFF)) + (0.114 * float((rgb >> 0) & 0xFF)));
 }
 
 template<size_t NT>
@@ -501,18 +495,19 @@ void set_states_kernel(const uint32_t num_envs,
     t.cyclesWhenTimerSet = s.cyclesWhenTimerSet;
     t.cyclesWhenInterruptReset = s.cyclesWhenInterruptReset;
 
-    t.sysFlags.template change<FLAG_NEGATIVE>(s.sysFlags[FLAG_NEGATIVE]);
-    t.sysFlags.template change<FLAG_OVERFLOW>(s.sysFlags[FLAG_OVERFLOW]);
-    t.sysFlags.template change<FLAG_BREAK>(s.sysFlags[FLAG_BREAK]);
-    t.sysFlags.template change<FLAG_DECIMAL>(s.sysFlags[FLAG_DECIMAL]);
-    t.sysFlags.template change<FLAG_INTERRUPT_OFF>(s.sysFlags[FLAG_INTERRUPT_OFF]);
-    t.sysFlags.template change<FLAG_ZERO>(s.sysFlags[FLAG_ZERO]);
-    t.sysFlags.template change<FLAG_CARRY>(s.sysFlags[FLAG_CARRY]);
-
+    t.sysFlags = s.sysFlags;
     t.tiaFlags = s.tiaFlags;
 
     t.frameData = s.frameData;
     t.score = s.score;
+    t.M0CosmicArkCounter = s.M0CosmicArkCounter;
+
+    t.CurrentPFMask = &playfield_accessor(0, 0);
+    t.CurrentP0Mask = &player_mask_accessor(0, 0, 0, 0);
+    t.CurrentP1Mask = &player_mask_accessor(0, 0, 0, 0);
+    t.CurrentM0Mask = &missle_accessor(0, 0, 0, 0);
+    t.CurrentM1Mask = &missle_accessor(0, 0, 0, 0);
+    t.CurrentBLMask = &ball_accessor(0, 0, 0);
 
     ram_buffer += 128 * global_index;
     input_states_ram += 256 * index;

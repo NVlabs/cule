@@ -348,10 +348,9 @@ static
 CULE_ANNOTATION
 uint8_t read(State_t& s, const maddr_t& addr)
 {
-    uint8_t value = 0;
-
     updateFrame(s, 3 * s.cpuCycles);
 
+    uint8_t value = 0;
     uint8_t noise = s.noise & 0x3F;
 
     switch(addr & 0xF)
@@ -442,6 +441,7 @@ uint8_t read(State_t& s, const maddr_t& addr)
             value = noise;
         }
     }
+    storeTiaUpdate(s, value, maddr_t(0x80));
 
     return value;
 }
@@ -598,6 +598,7 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
             UPDATE_FIELD(s.PF, FIELD_PF1, value);
             uint32_t temp = SELECT_FIELD(s.PF, FIELD_PFALL);
             s.tiaFlags.template change<FLAG_TIA_PFBit>(temp != 0);
+
             break;
         }
         case ADR_PF2:    // Playfield register byte 2
@@ -605,6 +606,7 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
             UPDATE_FIELD(s.PF, FIELD_PF2, value);
             uint32_t temp = SELECT_FIELD(s.PF, FIELD_PFALL);
             s.tiaFlags.template change<FLAG_TIA_PFBit>(temp != 0);
+
             break;
         }
         case ADR_RESP0:    // Reset Player 0

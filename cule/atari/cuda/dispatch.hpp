@@ -130,7 +130,7 @@ step(cule::cuda::parallel_execution_policy& policy,
      Wrapper& wrap,
      const bool fire_reset,
      const Action* actionsBuffer,
-     uint8_t* doneBuffer)
+     bool* doneBuffer)
 {
     using State_t = typename Wrapper::State_t;
 
@@ -155,8 +155,8 @@ void
 get_data(cule::cuda::parallel_execution_policy& policy,
          Wrapper& wrap,
          const bool episodic_life,
-         uint8_t* doneBuffer,
-         int32_t* rewardsBuffer,
+         bool* doneBuffer,
+         float* rewardsBuffer,
          int32_t* livesBuffer)
 {
     using State_t = typename Wrapper::State_t;

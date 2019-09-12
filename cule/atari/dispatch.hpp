@@ -185,7 +185,7 @@ step(ExecutionPolicy&& policy,
      Wrapper& wrap,
      const bool fire_reset,
      const Action* actionsBuffer,
-     uint8_t* doneBuffer)
+     bool* doneBuffer)
 {
     agency::bulk_invoke(policy(wrap.size()),
                         step_functor<Environment>{},
@@ -203,8 +203,8 @@ void
 get_data(ExecutionPolicy&& policy,
          Wrapper& wrap,
          const bool episodic_life,
-         uint8_t* doneBuffer,
-         int32_t* rewardsBuffer,
+         bool* doneBuffer,
+         float* rewardsBuffer,
          int32_t* livesBuffer)
 {
     agency::bulk_invoke(policy(wrap.size()),
