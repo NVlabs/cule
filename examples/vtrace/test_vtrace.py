@@ -23,7 +23,7 @@ for n_test in range(0, 3):
         if n_gpus[n_config] == 1:
             base_cmd_string = ' --use-openai-test-env --use-cuda-env'
         if n_gpus[n_config] == 4:
-            t_max = t_max * 4
+            t_max = t_max * 2
             base_cmd_string = ' --use-openai-test-env --multiprocessing-distributed --use-cuda-env'
         base_cmd_string = base_cmd_string + ' --normalize '
         output_filename = 'a2cvtrace_' + args.game_name + '_nenvs_' + str(envs[n_config]) + '_nsteps_' + str(n_steps[n_config]) + \
