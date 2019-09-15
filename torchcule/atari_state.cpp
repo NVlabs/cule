@@ -211,7 +211,7 @@ struct decode_states_functor
         ds.COLUP1 = SELECT_FIELD(fs.Color, cule::atari::FIELD_COLUP1);
         ds.COLUPF = SELECT_FIELD(fs.Color, cule::atari::FIELD_COLUPF);
         ds.COLUBK = SELECT_FIELD(fs.Color, cule::atari::FIELD_COLUBK);
-        ds.CTRLPF = ((SELECT_FIELD(s.PF,  cule::atari::FIELD_CTRLPF) & 3) << 4) + s.tiaFlags[cule::atari::FLAG_TIA_CTRLPF];
+        ds.CTRLPF = (SELECT_FIELD(s.PF,  cule::atari::FIELD_CTRLPF) << 4) + s.tiaFlags[cule::atari::FLAG_TIA_CTRLPF];
         ds.playfieldPriorityAndScore = fs.playfieldPriorityAndScore;
         ds.REFP0 = s.tiaFlags[cule::atari::FLAG_TIA_REFP0];
         ds.REFP1 = s.tiaFlags[cule::atari::FLAG_TIA_REFP1];
