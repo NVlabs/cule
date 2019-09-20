@@ -98,22 +98,12 @@ void updateFrameScanline(frame_state& s,
 
         for(int32_t hpos = begin_pos; hpos < end_pos; ++hpos)
         {
-            uint8_t enabled = (PF & s.CurrentPFMask[hpos]) ? PFBit : 0;
-
-            if(s.tiaFlags[FLAG_TIA_BLBit] && s.CurrentBLMask[hpos])
-                enabled |= BLBit;
-
-            if(s.CurrentGRP1 && (s.CurrentGRP1 & s.CurrentP1Mask[hpos]))
-                enabled |= P1Bit;
-
-            if(s.tiaFlags[FLAG_TIA_M1Bit] && s.CurrentM1Mask[hpos])
-                enabled |= M1Bit;
-
-            if(s.CurrentGRP0 && (s.CurrentGRP0 & s.CurrentP0Mask[hpos]))
-                enabled |= P0Bit;
-
-            if(s.tiaFlags[FLAG_TIA_M0Bit] && s.CurrentM0Mask[hpos])
-                enabled |= M0Bit;
+            uint8_t enabled = ((PF & s.CurrentPFMask[hpos]) > 0) * PFBit;
+            enabled |= (s.tiaFlags[FLAG_TIA_BLBit] && s.CurrentBLMask[hpos]) * BLBit;
+            enabled |= (s.CurrentGRP1 && (s.CurrentGRP1 & s.CurrentP1Mask[hpos])) * P1Bit;
+            enabled |= (s.tiaFlags[FLAG_TIA_M1Bit] && s.CurrentM1Mask[hpos]) * M1Bit;
+            enabled |= (s.CurrentGRP0 && (s.CurrentGRP0 & s.CurrentP0Mask[hpos])) * P0Bit;
+            enabled |= (s.tiaFlags[FLAG_TIA_M0Bit] && s.CurrentM0Mask[hpos]) * M0Bit;
 
             int32_t shift = 8 * int(priority_accessor(hpos < 80 ? 0 : 1, enabled | s.playfieldPriorityAndScore));
             *s.framePointer++ = SELECT_FIELD(s.Color, 0xFF << shift);
@@ -135,7 +125,7 @@ void updateFrame(frame_state& s, const int32_t& clock)
     }
 
     // Truncate the number of cycles to update to the stop display point
-    int32_t temp_clock = min(clock, clockStopDisplay(s));
+    const int32_t temp_clock = min(clock, clockStopDisplay(s));
 
     const uint32_t PF = SELECT_FIELD(s.PF,  FIELD_PFALL);
 
@@ -347,7 +337,12 @@ void poke(frame_state &s, const uint8_t& value, const uint8_t& addr)
             const uint8_t POSBL = SELECT_FIELD(s.HM,  FIELD_POSBL);
 
             s.tiaFlags.template change<FLAG_TIA_CTRLPF>((value & 0x01) == 0x01);
-            s.CurrentPFMask = &playfield_accessor(s.tiaFlags[FLAG_TIA_CTRLPF], 0);
+            UPDATE_FIELD(s.PF, FIELD_CTRLPF, CTRLPF);
+            if((((3 * s.cpuCycles) - s.clockWhenFrameStarted) % 228) < (68 + 79))
+            {
+                s.CurrentPFMask = &playfield_accessor(s.tiaFlags[FLAG_TIA_CTRLPF], 0);
+            }
+
             s.CurrentBLMask = &ball_accessor(POSBL & 0x03, CTRLPF, 160 - (POSBL & 0xFC));
 
             // The playfield priority and score bits from the control register
