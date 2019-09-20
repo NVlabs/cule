@@ -24,6 +24,26 @@ except ImportError:
 def worker(gpu, ngpus_per_node, args):
     env_device, train_device = args_initialize(gpu, ngpus_per_node, args)
 
+    # benchmark?
+    if args.benchmark:
+
+        device_name = torch.cuda.get_device_name(args.gpu).lower().replace(' ', '_')
+        backend_name = 'cule_cpu'
+        if args.use_openai:
+            backend_name = 'openai'
+        if args.use_cuda_env:
+            backend_name = 'cule_gpu'
+        if args.use_cuda_env and args.multiprocessing_distributed:
+            backend_name = 'cule_multiples_gpus'
+        filename = 'rom_perf_' + device_name + '_' + backend_name + '_' + args.env_name + '_' + str(args.num_ales) + '.csv'
+        csv_file = open(filename, 'w', newline='')
+        csv_writer = csv.writer(csv_file, delimiter=',')
+        csv_writer.writerow(['env_name', 'num_ales', 'step_time', 'step_rate', 'device', 'mode'])
+
+        args.evaluation_interval = args.t_max # no eval while benchmarking!
+
+        benchmark_steps = 100
+
     double_testing = True
 
     # openai and cule testing
@@ -101,65 +121,85 @@ def worker(gpu, ngpus_per_node, args):
         total_time = 0
         evaluation_offset = 0
 
+    # benchmark - random
+    if args.benchmark:
+        torch.cuda.current_stream().synchronize()
+        benchmark_start_time = time.time()
+        for step in range(0, benchmark_steps):
+            if args.use_openai:
+                random_actions = np.random.randint(train_env.action_space.n, size=args.num_ales)
+                observation, reward, done, info = train_env.step(random_actions)
+            else: 
+                random_actions = train_env.sample_random_actions()
+                observation, reward, done, info = train_env.step(maybe_npy(random_actions))
+        torch.cuda.current_stream().synchronize()
+        elapsed_time = time.time() - benchmark_start_time
+        fps = benchmark_steps * args.num_ales / elapsed_time
+
+        csv_writer.writerow([args.env_name, args.num_ales, elapsed_time / benchmark_steps, fps, backend_name, 'random'])
+        print('Benchmark - random: ' + str(round(fps)) + ' PFS') 
+
+        benchmark_start_time = time.time()
+
     for update in iterator:
 
-        T = args.world_size * update * num_frames_per_iter
-        if (args.rank == 0) and (T >= evaluation_offset):
-            evaluation_offset += args.evaluation_interval
+        if not args.benchmark:
+            T = args.world_size * update * num_frames_per_iter
+            if (args.rank == 0) and (T >= evaluation_offset):
+                evaluation_offset += args.evaluation_interval
 
-            if double_testing == False:
-                eval_lengths, eval_rewards = test(args, model, test_env)
+                if double_testing == False:
+                    eval_lengths, eval_rewards = test(args, model, test_env)
 
-                lmean, lmedian, lmin, lmax, lstd = gen_data(eval_lengths)
-                rmean, rmedian, rmin, rmax, rstd = gen_data(eval_rewards)
-                length_data = '(length) min/max/mean/median: {lmin:4.1f}/{lmax:4.1f}/{lmean:4.1f}/{lmedian:4.1f}'.format(lmin=lmin, lmax=lmax, lmean=lmean, lmedian=lmedian)
-                reward_data = '(reward) min/max/mean/median: {rmin:4.1f}/{rmax:4.1f}/{rmean:4.1f}/{rmedian:4.1f}'.format(rmin=rmin, rmax=rmax, rmean=rmean, rmedian=rmedian)
-                print('[training time: {}] {}'.format(format_time(total_time), ' --- '.join([length_data, reward_data])))
+                    lmean, lmedian, lmin, lmax, lstd = gen_data(eval_lengths)
+                    rmean, rmedian, rmin, rmax, rstd = gen_data(eval_rewards)
+                    length_data = '(length) min/max/mean/median: {lmin:4.1f}/{lmax:4.1f}/{lmean:4.1f}/{lmedian:4.1f}'.format(lmin=lmin, lmax=lmax, lmean=lmean, lmedian=lmedian)
+                    reward_data = '(reward) min/max/mean/median: {rmin:4.1f}/{rmax:4.1f}/{rmean:4.1f}/{rmedian:4.1f}'.format(rmin=rmin, rmax=rmax, rmean=rmean, rmedian=rmedian)
+                    print('[training time: {}] {}'.format(format_time(total_time), ' --- '.join([length_data, reward_data])))
 
-                if eval_csv_writer and eval_csv_file:
-                    eval_csv_writer.writerow([T, total_time, rmean, rmedian, rmin, rmax, rstd, lmean, lmedian, lmin, lmax, lstd])
-                    eval_csv_file.flush()
+                    if eval_csv_writer and eval_csv_file:
+                        eval_csv_writer.writerow([T, total_time, rmean, rmedian, rmin, rmax, rstd, lmean, lmedian, lmin, lmax, lstd])
+                        eval_csv_file.flush()
 
-                if args.plot:
-                    summary_writer.add_scalar('eval/rewards_mean', rmean, T, walltime=total_time)
-                    summary_writer.add_scalar('eval/lengths_mean', lmean, T, walltime=total_time)
+                    if args.plot:
+                        summary_writer.add_scalar('eval/rewards_mean', rmean, T, walltime=total_time)
+                        summary_writer.add_scalar('eval/lengths_mean', lmean, T, walltime=total_time)
 
-            else:
+                else:
 
-                args.use_openai_test_env = False
-                eval_lengths, eval_rewards = test(args, model, test_env)
-                lmean, lmedian, lmin, lmax, lstd = gen_data(eval_lengths)
-                rmean, rmedian, rmin, rmax, rstd = gen_data(eval_rewards)
-                length_data = '(length) min/max/mean/median: {lmin:4.1f}/{lmax:4.1f}/{lmean:4.1f}/{lmedian:4.1f}'.format(lmin=lmin, lmax=lmax, lmean=lmean, lmedian=lmedian)
-                reward_data = '(reward) min/max/mean/median: {rmin:4.1f}/{rmax:4.1f}/{rmean:4.1f}/{rmedian:4.1f}'.format(rmin=rmin, rmax=rmax, rmean=rmean, rmedian=rmedian)
-                print('[CuLE CPU] [training time: {}] {}'.format(format_time(total_time), ' --- '.join([length_data, reward_data])))
+                    args.use_openai_test_env = False
+                    eval_lengths, eval_rewards = test(args, model, test_env)
+                    lmean, lmedian, lmin, lmax, lstd = gen_data(eval_lengths)
+                    rmean, rmedian, rmin, rmax, rstd = gen_data(eval_rewards)
+                    length_data = '(length) min/max/mean/median: {lmin:4.1f}/{lmax:4.1f}/{lmean:4.1f}/{lmedian:4.1f}'.format(lmin=lmin, lmax=lmax, lmean=lmean, lmedian=lmedian)
+                    reward_data = '(reward) min/max/mean/median: {rmin:4.1f}/{rmax:4.1f}/{rmean:4.1f}/{rmedian:4.1f}'.format(rmin=rmin, rmax=rmax, rmean=rmean, rmedian=rmedian)
+                    print('[CuLE CPU] [training time: {}] {}'.format(format_time(total_time), ' --- '.join([length_data, reward_data])))
 
-                if eval_csv_writer and eval_csv_file:
-                    eval_csv_writer.writerow([T, total_time, rmean, rmedian, rmin, rmax, rstd, lmean, lmedian, lmin, lmax, lstd])
-                    eval_csv_file.flush()
+                    if eval_csv_writer and eval_csv_file:
+                        eval_csv_writer.writerow([T, total_time, rmean, rmedian, rmin, rmax, rstd, lmean, lmedian, lmin, lmax, lstd])
+                        eval_csv_file.flush()
 
-                if args.plot:
-                    summary_writer.add_scalar('eval/rewards_mean', rmean, T, walltime=total_time)
-                    summary_writer.add_scalar('eval/lengths_mean', lmean, T, walltime=total_time)
+                    if args.plot:
+                        summary_writer.add_scalar('eval/rewards_mean', rmean, T, walltime=total_time)
+                        summary_writer.add_scalar('eval/lengths_mean', lmean, T, walltime=total_time)
 
-                args.use_openai_test_env = True
-                eval_lengths, eval_rewards = test(args, model, test_env_oai)
-                lmean, lmedian, lmin, lmax, lstd = gen_data(eval_lengths)
-                rmean, rmedian, rmin, rmax, rstd = gen_data(eval_rewards)
-                length_data = '(length) min/max/mean/median: {lmin:4.1f}/{lmax:4.1f}/{lmean:4.1f}/{lmedian:4.1f}'.format(lmin=lmin, lmax=lmax, lmean=lmean, lmedian=lmedian)
-                reward_data = '(reward) min/max/mean/median: {rmin:4.1f}/{rmax:4.1f}/{rmean:4.1f}/{rmedian:4.1f}'.format(rmin=rmin, rmax=rmax, rmean=rmean, rmedian=rmedian)
-                print('[OpAI CPU] [training time: {}] {}'.format(format_time(total_time), ' --- '.join([length_data, reward_data])))
+                    args.use_openai_test_env = True
+                    eval_lengths, eval_rewards = test(args, model, test_env_oai)
+                    lmean, lmedian, lmin, lmax, lstd = gen_data(eval_lengths)
+                    rmean, rmedian, rmin, rmax, rstd = gen_data(eval_rewards)
+                    length_data = '(length) min/max/mean/median: {lmin:4.1f}/{lmax:4.1f}/{lmean:4.1f}/{lmedian:4.1f}'.format(lmin=lmin, lmax=lmax, lmean=lmean, lmedian=lmedian)
+                    reward_data = '(reward) min/max/mean/median: {rmin:4.1f}/{rmax:4.1f}/{rmean:4.1f}/{rmedian:4.1f}'.format(rmin=rmin, rmax=rmax, rmean=rmean, rmedian=rmedian)
+                    print('[OpAI CPU] [training time: {}] {}'.format(format_time(total_time), ' --- '.join([length_data, reward_data])))
 
-                if eval_csv_writer_oai and eval_csv_file_oai:
-                    eval_csv_writer_oai.writerow([T, total_time, rmean, rmedian, rmin, rmax, rstd, lmean, lmedian, lmin, lmax, lstd])
-                    eval_csv_file_oai.flush()
+                    if eval_csv_writer_oai and eval_csv_file_oai:
+                        eval_csv_writer_oai.writerow([T, total_time, rmean, rmedian, rmin, rmax, rstd, lmean, lmedian, lmin, lmax, lstd])
+                        eval_csv_file_oai.flush()
 
-                if args.plot:
-                    summary_writer_oai.add_scalar('eval/rewards_mean', rmean, T, walltime=total_time)
-                    summary_writer_oai.add_scalar('eval/lengths_mean', lmean, T, walltime=total_time)
+                    if args.plot:
+                        summary_writer_oai.add_scalar('eval/rewards_mean', rmean, T, walltime=total_time)
+                        summary_writer_oai.add_scalar('eval/lengths_mean', lmean, T, walltime=total_time)
 
-                args.use_openai_test_env = use_openai_test_env
-
+                    args.use_openai_test_env = use_openai_test_env
 
         start_time = time.time()
 
@@ -167,6 +207,8 @@ def worker(gpu, ngpus_per_node, args):
 
             for step in range(args.num_steps_per_update):
                 nvtx.range_push('train:step')
+
+                # step
                 value, logit = model(states[step0 + step])
 
                 # store values and logits
@@ -219,6 +261,24 @@ def worker(gpu, ngpus_per_node, args):
                 episode_lengths *= not_done
                 nvtx.range_pop()
 
+        # benchmark - inference
+        if args.benchmark:
+            if update < (benchmark_steps - 1):
+                for step in range(0, args.num_steps_per_update):
+                    states[:-1, :, :, :, :] = states[1:, :, :, : ,:]
+                    rewards[:-1, :] = rewards[1:, :]
+                    actions[:-1, :] = actions[1:, :]
+                    masks[:-1, :] = masks[1:, :]
+                    mus[:-1, :] = mus[1:, :]
+                continue
+            if update == (benchmark_steps - 1):
+                torch.cuda.current_stream().synchronize()
+                elapsed_time = time.time() - benchmark_start_time
+                fps = benchmark_steps * args.num_ales * args.num_steps_per_update / elapsed_time
+
+                csv_writer.writerow([args.env_name, args.num_ales, elapsed_time / benchmark_steps, fps, backend_name, 'inference'])
+                print('Benchmark - inference: ' + str(round(fps)) + ' PFS') 
+           
         n_minibatch = (n_minibatch + 1) % args.num_minibatches
         min_ale_index = int(n_minibatch * minibatch_size)
         max_ale_index = min_ale_index + minibatch_size
@@ -296,20 +356,35 @@ def worker(gpu, ngpus_per_node, args):
 
         torch.cuda.synchronize()
 
-        if args.rank == 0:
-            iter_time = time.time() - start_time
-            total_time += iter_time
+        if not args.benchmark:
+            if args.rank == 0:
+                iter_time = time.time() - start_time
+                total_time += iter_time
 
-            if args.plot:
-                summary_writer.add_scalar('train/rewards_mean', final_rewards.mean().item(), T, walltime=total_time)
-                summary_writer.add_scalar('train/lengths_mean', final_lengths.mean().item(), T, walltime=total_time)
-                summary_writer.add_scalar('train/value_loss', value_loss, T, walltime=total_time)
-                summary_writer.add_scalar('train/policy_loss', policy_loss, T, walltime=total_time)
-                summary_writer.add_scalar('train/entropy', dist_entropy, T, walltime=total_time)
+                if args.plot:
+                    summary_writer.add_scalar('train/rewards_mean', final_rewards.mean().item(), T, walltime=total_time)
+                    summary_writer.add_scalar('train/lengths_mean', final_lengths.mean().item(), T, walltime=total_time)
+                    summary_writer.add_scalar('train/value_loss', value_loss, T, walltime=total_time)
+                    summary_writer.add_scalar('train/policy_loss', policy_loss, T, walltime=total_time)
+                    summary_writer.add_scalar('train/entropy', dist_entropy, T, walltime=total_time)
 
-            progress_data = callback(args, model, T, iter_time, final_rewards, final_lengths,
-                                     value_loss, policy_loss, dist_entropy, train_csv_writer, train_csv_file)
-            iterator.set_postfix_str(progress_data)
+                progress_data = callback(args, model, T, iter_time, final_rewards, final_lengths,
+                                         value_loss, policy_loss, dist_entropy, train_csv_writer, train_csv_file)
+                iterator.set_postfix_str(progress_data)
+
+        # benchmark - training
+        if args.benchmark:
+            if update == benchmark_steps:
+                benchmark_start_time = time.time()
+            if update == 2 * benchmark_steps: 
+                elapsed_time = time.time() - benchmark_start_time
+                fps = benchmark_steps * args.num_ales * args.num_steps_per_update / elapsed_time
+
+                csv_writer.writerow([args.env_name, args.num_ales, elapsed_time / benchmark_steps, fps, backend_name, 'training'])
+                print('Benchmark - training: ' + str(round(fps)) + ' PFS')      
+                
+                csv_file.close()
+                break
 
     if args.plot and (args.rank == 0):
         writer.close()

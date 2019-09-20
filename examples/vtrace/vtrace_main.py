@@ -16,6 +16,8 @@ def vtrace_parser_options(parser):
     parser.add_argument('--num-minibatches', type=int, default=16, help='number of mini-batches in the set of environments (default: 16)')
     parser.add_argument('--num-steps-per-update', type=int, default=1, help='number of steps per update (default: 1)')
 
+    parser.add_argument('--benchmark', action='store_true', help='Special case: benchmark')
+
     return parser
 
 def vtrace_main():
