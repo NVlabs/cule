@@ -123,7 +123,22 @@ def worker(gpu, ngpus_per_node, args):
 
     # benchmark - random
     if args.benchmark:
+        # warmup (measure anyway for debug!)
         torch.cuda.current_stream().synchronize()
+        benchmark_start_time = time.time()
+        for step in range(0, 10):
+            if args.use_openai:
+                random_actions = np.random.randint(train_env.action_space.n, size=args.num_ales)
+                observation, reward, done, info = train_env.step(random_actions)
+            else:
+                random_actions = train_env.sample_random_actions()
+                observation, reward, done, info = train_env.step(maybe_npy(random_actions))
+        torch.cuda.current_stream().synchronize()
+        elapsed_time = time.time() - benchmark_start_time
+        fps = 10 * args.num_ales / elapsed_time
+        print('Warmup - random: ' + str(round(fps)) + 'FPS')
+
+        # benchmark
         benchmark_start_time = time.time()
         for step in range(0, benchmark_steps):
             if args.use_openai:
