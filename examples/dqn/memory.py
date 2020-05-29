@@ -40,26 +40,26 @@ class ReplayMemory():
         stepsize  = num_steps * imagesize
 
         self.observations = torch.zeros((self.num_ales, num_steps, width, height), device=self.device, dtype=torch.uint8)
-        self.states_view = torch.zeros(0, device=self.device, dtype=torch.uint8)
-        self.states_view.set_(self.observations.storage(),
-                              storage_offset=0,
-                              size=torch.Size([self.num_ales, num_steps, self.history, width, height]),
-                              stride=(stepsize, imagesize, imagesize, width, 1))
+        self.states_view = self.observations.as_strided(
+            size=torch.Size([self.num_ales, num_steps - (self.history - 1), self.history, width, height]),
+            stride=(stepsize, imagesize, imagesize, width, 1),
+            storage_offset=0
+        )
 
         self.frame_number = torch.zeros(self.num_ales, num_steps, device=self.device, dtype=torch.int32)
         self.frame_number[:, (self.history - 1) + (self.steps_per_ale - 1)] = -1
-        self.frame_view = torch.zeros(0, device=self.device, dtype=torch.int32)
-        self.frame_view.set_(self.frame_number.storage(),
-                             storage_offset=0,
-                             size=torch.Size([self.num_ales, num_steps, self.history]),
-                             stride=(num_steps, 1, 1))
+        self.frame_view = self.frame_number.as_strided(
+            size=torch.Size([self.num_ales, num_steps - (self.history - 1), self.history]),
+            stride=(num_steps, 1, 1),
+            storage_offset=0,
+        )
 
         self.rewards = torch.zeros(self.num_ales, num_steps, device=self.device, dtype=torch.float32)
-        self.reward_view = torch.zeros(0, device=self.device, dtype=torch.float32)
-        self.reward_view.set_(self.rewards.storage(),
-                              storage_offset=0,
-                              size=torch.Size([self.num_ales, num_steps, self.n]),
-                              stride=(num_steps, 1, 1))
+        self.reward_view = self.rewards.as_strided(
+            size=torch.Size([self.num_ales, num_steps - (self.history - 1), self.n]),
+            stride=(num_steps, 1, 1),
+            storage_offset=0,
+        )
 
     def update_sections(self, batch_size):
         capacity = self.capacity if self.full else self.index * self.num_ales
