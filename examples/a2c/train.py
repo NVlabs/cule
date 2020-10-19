@@ -13,11 +13,6 @@ from helper import callback, format_time, gen_data
 from model import ActorCritic
 from test import test
 
-try:
-    from apex import amp
-except ImportError:
-    raise ImportError('Please install apex from https://www.github.com/nvidia/apex to run this example.')
-
 def worker(gpu, ngpus_per_node, args):
     env_device, train_device = args_initialize(gpu, ngpus_per_node, args)
     train_csv_file, train_csv_writer, eval_csv_file, eval_csv_writer, summary_writer = log_initialize(args, train_device)
@@ -61,6 +56,9 @@ def worker(gpu, ngpus_per_node, args):
         total_time = 0
         evaluation_offset = 0
 
+    # Creates once at the beginning of training
+    scaler = torch.cuda.amp.GradScaler()
+
     for update in iterator:
 
         T = args.world_size * update * num_frames_per_iter
@@ -87,7 +85,8 @@ def worker(gpu, ngpus_per_node, args):
         with torch.no_grad():
 
             for step in range(args.num_steps):
-                value, logit = model(states[step])
+                with torch.cuda.amp.autocast():
+                    value, logit = model(states[step])
 
                 # store values
                 values[step] = value.squeeze(-1)
@@ -143,7 +142,8 @@ def worker(gpu, ngpus_per_node, args):
                 for step in reversed(range(args.num_steps)):
                     returns[step] = rewards[step] + (args.gamma * returns[step + 1] * masks[step])
 
-        value, logit = model(states[:-1].view(-1, *states.size()[-3:]))
+        with torch.cuda.amp.autocast():
+            value, logit = model(states[:-1].view(-1, *states.size()[-3:]))
 
         log_probs = F.log_softmax(logit, dim=1)
         probs = F.softmax(logit, dim=1)
@@ -161,14 +161,13 @@ def worker(gpu, ngpus_per_node, args):
 
         if args.cpu_train:
             loss.backward()
-            master_params = model.parameters()
+            optimizer.step()
         else:
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward()
-            master_params = amp.master_params(optimizer)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
-        torch.nn.utils.clip_grad_norm_(master_params, args.max_grad_norm)
-        optimizer.step()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
         states[0].copy_(states[-1])
 

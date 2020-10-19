@@ -91,7 +91,7 @@ class Env(torchcule_atari.AtariEnv):
         self.action_set = torch.Tensor([int(s) for s in self.cart.minimal_actions()]).to(self.device).byte()
 
         # check if FIRE is in the action set
-        self.fire_reset = torchcule_atari.FIRE in self.action_set
+        self.fire_reset = int(torchcule_atari.FIRE) in self.action_set
 
         self.action_space = spaces.Discrete(self.action_set.size(0))
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.num_channels, self.height, self.width), dtype=np.uint8)

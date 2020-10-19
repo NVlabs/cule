@@ -60,6 +60,7 @@ class ActorCritic(nn.Module):
                 std = torch.sqrt(self.ob_rms.var.to(dtype=torch.float32, device=x.device) + float(np.finfo(np.float32).eps))
                 x = (x - mean) / std
 
+        x = x.to(dtype=self.conv1.weight.dtype)
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
