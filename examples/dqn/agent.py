@@ -5,15 +5,8 @@ import torch.cuda.nvtx as nvtx
 import torch.nn.functional as F
 
 from torch import optim
+from torch.nn.parallel import DistributedDataParallel as DDP
 from model import DQN
-
-try:
-    from apex.parallel import DistributedDataParallel as DDP
-    from apex.fp16_utils import *
-    from apex import amp, optimizers
-    from apex.multi_tensor_apply import multi_tensor_applier
-except ImportError:
-    raise ImportError('Please install apex from https://www.github.com/nvidia/apex to run this example.')
 
 class Agent():
   def __init__(self, args, action_space):
@@ -50,13 +43,8 @@ class Agent():
 
       self.optimizer = optim.Adam(self.online_net.parameters(), lr=args.lr, eps=args.adam_eps, amsgrad=True)
 
-      [self.online_net, self.target_net], self.optimizer = amp.initialize([self.online_net, self.target_net], self.optimizer,
-                                                                          opt_level=args.opt_level,
-                                                                          loss_scale=args.loss_scale
-                                                                         )
       if args.distributed:
-          self.online_net = DDP(self.online_net, delay_allreduce=True)
-          self.target_net = DDP(self.target_net, delay_allreduce=True)
+          self.online_net = DDP(self.online_net)
 
   # Resets noisy weights in all linear layers (of online net only)
   def reset_noise(self):
@@ -154,9 +142,8 @@ class Agent():
     nvtx.range_push('agent:loss + step')
     self.optimizer.zero_grad()
     weighted_loss = (weights * loss).mean()
-    with amp.scale_loss(weighted_loss, self.optimizer) as scaled_loss:
-        scaled_loss.backward()
-    torch.nn.utils.clip_grad_norm_(amp.master_params(self.optimizer), self.max_grad_norm)
+    weighted_loss.backward()
+    torch.nn.utils.clip_grad_norm_(self.online_net.parameters(), self.max_grad_norm)
     self.optimizer.step()
     nvtx.range_pop()
 
