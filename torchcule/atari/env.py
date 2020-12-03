@@ -53,8 +53,8 @@ class Env(torchcule_atari.AtariEnv):
     """
 
     def __init__(self, env_name, num_envs, color_mode='rgb', device='cpu', rescale=False,
-                 frameskip=1, repeat_prob=0.25, clip_rewards=False, episodic_life=False,
-                 max_noop_steps=30, max_episode_length=10000):
+                 frameskip=1, repeat_prob=0.25, episodic_life=False, max_noop_steps=30,
+                 max_episode_length=10000):
         """Initialize the ALE class with a given environment
 
         Args:
@@ -83,7 +83,6 @@ class Env(torchcule_atari.AtariEnv):
         self.repeat_prob = repeat_prob
         self.is_cuda = self.device.type == 'cuda'
         self.is_training = False
-        self.clip_rewards = clip_rewards
         self.episodic_life = episodic_life
         self.height = 84 if self.rescale else self.cart.screen_height()
         self.width = 84 if self.rescale else self.cart.screen_width()
@@ -92,18 +91,18 @@ class Env(torchcule_atari.AtariEnv):
         self.action_set = torch.Tensor([int(s) for s in self.cart.minimal_actions()]).to(self.device).byte()
 
         # check if FIRE is in the action set
-        self.fire_reset = torchcule_atari.FIRE in self.action_set
+        self.fire_reset = int(torchcule_atari.FIRE) in self.action_set
 
         self.action_space = spaces.Discrete(self.action_set.size(0))
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.num_channels, self.height, self.width), dtype=np.uint8)
 
         self.observations1 = torch.zeros((num_envs, self.height, self.width, self.num_channels), device=self.device, dtype=torch.uint8)
         self.observations2 = torch.zeros((num_envs, self.height, self.width, self.num_channels), device=self.device, dtype=torch.uint8)
-        self.done = torch.zeros(num_envs, device=self.device, dtype=torch.uint8)
+        self.done = torch.zeros(num_envs, device=self.device, dtype=torch.bool)
         self.actions = torch.zeros(num_envs, device=self.device, dtype=torch.uint8)
         self.last_actions = torch.zeros(num_envs, device=self.device, dtype=torch.uint8)
         self.lives = torch.zeros(num_envs, device=self.device, dtype=torch.int32)
-        self.rewards = torch.zeros(num_envs, device=self.device, dtype=torch.int32)
+        self.rewards = torch.zeros(num_envs, device=self.device, dtype=torch.float32)
 
         self.states = torch.zeros((num_envs, self.state_size()), device=self.device, dtype=torch.uint8)
         self.frame_states = torch.zeros((num_envs, self.frame_state_size()), device=self.device, dtype=torch.uint8)
@@ -295,9 +294,6 @@ class Env(torchcule_atari.AtariEnv):
                 torch.cuda.current_stream().synchronize()
 
         self.observations1 = torch.max(self.observations1, self.observations2)
-
-        if self.clip_rewards:
-            self.rewards.sign_()
 
         info = {'ale.lives': self.lives}
 

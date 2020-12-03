@@ -15,9 +15,9 @@ def test(args, policy_net, env):
         observation = env.reset(initial_steps=50).squeeze(-1)
 
     lengths = torch.zeros(num_ales, dtype=torch.int32)
-    rewards = torch.zeros(num_ales, dtype=torch.int32)
+    rewards = torch.zeros(num_ales, dtype=torch.float32)
     all_done = torch.zeros(num_ales, dtype=torch.bool)
-    not_done = torch.ones(num_ales, dtype=torch.int32)
+    not_done = torch.ones(num_ales, dtype=torch.bool)
 
     fire_reset = torch.zeros(num_ales, dtype=torch.bool)
     actions = torch.ones(num_ales, dtype=torch.uint8)
@@ -46,13 +46,12 @@ def test(args, policy_net, env):
         if args.use_openai_test_env:
             # convert back to pytorch tensors
             observation = torch.from_numpy(observation)
-            reward = torch.from_numpy(reward.astype(np.int32))
+            reward = torch.from_numpy(reward.astype(np.float32))
             done = torch.from_numpy(done.astype(np.bool))
             new_lives = torch.IntTensor([d['ale.lives'] for d in info])
         else:
             new_lives = info['ale.lives'].clone()
 
-        done = done.bool()
         fire_reset = new_lives < lives
         lives.copy_(new_lives)
 
@@ -63,8 +62,8 @@ def test(args, policy_net, env):
         states[:, -1].copy_(observation.view(-1, *states.size()[-2:]))
 
         # update episodic reward counters
-        lengths += not_done
-        rewards += reward.cpu() * not_done.cpu()
+        lengths += not_done.int()
+        rewards += reward.cpu() * not_done.float().cpu()
 
         all_done |= done.cpu()
         all_done |= (lengths >= args.max_episode_length)

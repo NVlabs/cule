@@ -223,7 +223,7 @@ PYBIND11_MODULE(torchcule_atari, m) {
         {
             env.step(fire_reset,
                      reinterpret_cast<AtariAction*>(actionBuffer),
-                     reinterpret_cast<uint8_t*>(doneBuffer));
+                     reinterpret_cast<bool*>(doneBuffer));
         }
     )
     .def("two_step", [](AtariEnv &env, uint64_t playerABuffer, uint64_t playerBBuffer)
@@ -235,8 +235,8 @@ PYBIND11_MODULE(torchcule_atari, m) {
     .def("get_data", [](AtariEnv& env, const bool episodic_life, uint64_t doneBuffer, uint64_t rewardBuffer, uint64_t livesBuffer)
         {
             env.get_data(episodic_life,
-                         reinterpret_cast<uint8_t*>(doneBuffer),
-                         reinterpret_cast<int32_t*>(rewardBuffer),
+                         reinterpret_cast<bool*>(doneBuffer),
+                         reinterpret_cast<float*>(rewardBuffer),
                          reinterpret_cast<int32_t*>(livesBuffer));
         }
     )

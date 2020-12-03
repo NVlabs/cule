@@ -149,7 +149,7 @@ struct step_functor
                     State_t* states_buffer,
                     uint32_t* tia_update_buffer,
                     Action* action_buffer,
-                    uint8_t* done_buffer) const
+                    bool* done_buffer) const
     {
         if((done_buffer != nullptr) && done_buffer[self.index()])
         {
@@ -189,8 +189,8 @@ struct get_data_functor
     void operator()(Agent& self,
                     const bool episodic_life,
                     State_t* states_buffer,
-                    uint8_t* done_buffer,
-                    int32_t* rewards_buffer,
+                    bool* done_buffer,
+                    float* rewards_buffer,
                     int32_t* lives_buffer)
     {
         using ALE_t = typename Environment_t::ALE_t;
@@ -304,9 +304,9 @@ struct set_states_functor
                     const State_t* input_states_buffer,
                     const frame_state*) const
     {
-        const size_t index = indices[self.index()];
-
         const State_t& s = input_states_buffer[self.index()];
+
+        const size_t index = indices[self.index()];
         State_t& t = states_buffer[index];
 
         t.A = s.A;
@@ -338,19 +338,19 @@ struct set_states_functor
         t.cyclesWhenTimerSet = s.cyclesWhenTimerSet;
         t.cyclesWhenInterruptReset = s.cyclesWhenInterruptReset;
 
-        t.sysFlags.template change<FLAG_NEGATIVE>(s.sysFlags[FLAG_NEGATIVE]);
-        t.sysFlags.template change<FLAG_OVERFLOW>(s.sysFlags[FLAG_OVERFLOW]);
-        t.sysFlags.template change<FLAG_BREAK>(s.sysFlags[FLAG_BREAK]);
-        t.sysFlags.template change<FLAG_DECIMAL>(s.sysFlags[FLAG_DECIMAL]);
-        t.sysFlags.template change<FLAG_INTERRUPT_OFF>(s.sysFlags[FLAG_INTERRUPT_OFF]);
-        t.sysFlags.template change<FLAG_ZERO>(s.sysFlags[FLAG_ZERO]);
-        t.sysFlags.template change<FLAG_CARRY>(s.sysFlags[FLAG_CARRY]);
-
+        t.sysFlags = s.sysFlags;
         t.tiaFlags = s.tiaFlags;
 
         t.frameData = s.frameData;
         t.score = s.score;
         t.M0CosmicArkCounter = s.M0CosmicArkCounter;
+
+        t.CurrentPFMask = &playfield_accessor(0, 0);
+        t.CurrentP0Mask = &player_mask_accessor(0, 0, 0, 0);
+        t.CurrentP1Mask = &player_mask_accessor(0, 0, 0, 0);
+        t.CurrentM0Mask = &missle_accessor(0, 0, 0, 0);
+        t.CurrentM1Mask = &missle_accessor(0, 0, 0, 0);
+        t.CurrentBLMask = &ball_accessor(0, 0, 0);
 
         for(size_t i = 0; i < (128 / sizeof(uint32_t)); i++)
         {

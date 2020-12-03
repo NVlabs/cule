@@ -204,6 +204,14 @@ void updateFrameScanline(State_t& s,
             {
                 for(uint32_t hpos = begin_pos; hpos < end_pos; ++hpos)
                 {
+                    // uint8_t enabled = ((PF & s.CurrentPFMask[hpos]) > 0) * PFBit;
+                    // enabled |= (s.tiaFlags[FLAG_TIA_BLBit] && s.CurrentBLMask[hpos]) * BLBit;
+                    // enabled |= (s.CurrentGRP1 && (s.CurrentGRP1 & s.CurrentP1Mask[hpos])) * P1Bit;
+                    // enabled |= (s.tiaFlags[FLAG_TIA_M1Bit] && s.CurrentM1Mask[hpos]) * M1Bit;
+                    // enabled |= (s.CurrentGRP0 && (s.CurrentGRP0 & s.CurrentP0Mask[hpos])) * P0Bit;
+                    // enabled |= (s.tiaFlags[FLAG_TIA_M0Bit] && s.CurrentM0Mask[hpos]) * M0Bit;
+                    // s.collision |= collision_accessor(enabled);
+
                     uint8_t enabled = ((fields & PFBit) && (PF & s.CurrentPFMask[hpos])) ? PFBit : 0;
 
                     if((fields & BLBit) && s.tiaFlags[FLAG_TIA_BLBit] && s.CurrentBLMask[hpos])
@@ -348,10 +356,9 @@ static
 CULE_ANNOTATION
 uint8_t read(State_t& s, const maddr_t& addr)
 {
-    uint8_t value = 0;
-
     updateFrame(s, 3 * s.cpuCycles);
 
+    uint8_t value = 0;
     uint8_t noise = s.noise & 0x3F;
 
     switch(addr & 0xF)
@@ -442,6 +449,7 @@ uint8_t read(State_t& s, const maddr_t& addr)
             value = noise;
         }
     }
+    storeTiaUpdate(s, value, maddr_t(0x3F));
 
     return value;
 }
@@ -489,6 +497,7 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
                 s.sysFlags.set(FLAG_CPU_HALT);
                 s.tiaFlags.clear(FLAG_TIA_PARTIAL);
             }
+
             break;
         }
         case ADR_VBLANK:
@@ -508,12 +517,14 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
 
             s.tiaFlags.template change<FLAG_TIA_VBLANK1>((value & 0x80)==0x80);
             s.tiaFlags.template change<FLAG_TIA_VBLANK2>((value & 0x02)==0x02);
+
             break;
         }
         case ADR_WSYNC:
         {
             const uint8_t cyclesToEndOfLine = SCANLINE_CPU_CYCLES - ((s.cpuCycles  - (s.clockWhenFrameStarted / 3)) % SCANLINE_CPU_CYCLES);
             s.cpuCycles += (s.sysFlags[FLAG_CPU_LAST_READ] && (cyclesToEndOfLine < SCANLINE_CPU_CYCLES)) ? cyclesToEndOfLine : 0;
+
             return;
         }
         case ADR_RSYNC:
@@ -552,13 +563,16 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
         }
         case ADR_CTRLPF:    // Control Playfield, Ball size, Collisions
         {
-            UPDATE_FIELD(s.PF, FIELD_CTRLPF, (value & 0x30) >> 4);
-
             const uint8_t CTRLPF = (value & 0x30) >> 4;
             const uint8_t POSBL = SELECT_FIELD(s.HM,  FIELD_POSBL);
 
             s.tiaFlags.template change<FLAG_TIA_CTRLPF>((value & 0x01) == 0x01);
-            s.CurrentPFMask = &playfield_accessor(s.tiaFlags[FLAG_TIA_CTRLPF], 0);
+            UPDATE_FIELD(s.PF, FIELD_CTRLPF, CTRLPF);
+            if((((3 * s.cpuCycles) - s.clockWhenFrameStarted) % 228) < (68 + 79))
+            {
+                s.CurrentPFMask = &playfield_accessor(s.tiaFlags[FLAG_TIA_CTRLPF], 0);
+            }
+
             s.CurrentBLMask = &ball_accessor(POSBL & 0x03, CTRLPF, 160 - (POSBL & 0xFC));
 
             break;
@@ -598,6 +612,7 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
             UPDATE_FIELD(s.PF, FIELD_PF1, value);
             uint32_t temp = SELECT_FIELD(s.PF, FIELD_PFALL);
             s.tiaFlags.template change<FLAG_TIA_PFBit>(temp != 0);
+
             break;
         }
         case ADR_PF2:    // Playfield register byte 2
@@ -605,6 +620,7 @@ void write(State_t& s, const maddr_t& addr, const uint8_t& value)
             UPDATE_FIELD(s.PF, FIELD_PF2, value);
             uint32_t temp = SELECT_FIELD(s.PF, FIELD_PFALL);
             s.tiaFlags.template change<FLAG_TIA_PFBit>(temp != 0);
+
             break;
         }
         case ADR_RESP0:    // Reset Player 0

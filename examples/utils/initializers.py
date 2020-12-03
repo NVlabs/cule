@@ -12,16 +12,6 @@ from torchcule.atari import Env as AtariEnv
 from utils.openai.envs import create_vectorize_atari_env
 from utils.runtime import cuda_device_str
 
-try:
-    import apex
-    from apex.amp import __version__
-    from apex.parallel import DistributedDataParallel as DDP
-    from apex.fp16_utils import *
-    from apex import amp, optimizers
-    from apex.multi_tensor_apply import multi_tensor_applier
-except ImportError:
-    raise ImportError('Please install apex from https://www.github.com/nvidia/apex to run this example.')
-
 def args_initialize(gpu, ngpus_per_node, args):
     args.gpu = gpu
 
@@ -75,8 +65,7 @@ def env_initialize(args, device):
         observation = torch.from_numpy(train_env.reset()).squeeze(1)
     else:
         train_env = AtariEnv(args.env_name, args.num_ales, color_mode='gray', repeat_prob=0.0,
-                             device=device, rescale=True, episodic_life=args.episodic_life,
-                             clip_rewards=args.clip_rewards, frameskip=4)
+                             device=device, rescale=True, episodic_life=args.episodic_life, frameskip=4)
         train_env.train()
         observation = train_env.reset(initial_steps=args.ale_start_steps, verbose=args.verbose).squeeze(-1)
 
@@ -86,7 +75,7 @@ def env_initialize(args, device):
         test_env.reset()
     else:
         test_env = AtariEnv(args.env_name, args.evaluation_episodes, color_mode='gray', repeat_prob=0.0,
-                            device='cpu', rescale=True, episodic_life=False, clip_rewards=False, frameskip=4)
+                            device='cpu', rescale=True, episodic_life=False, frameskip=4)
 
     return train_env, test_env, observation
 
@@ -113,7 +102,7 @@ def log_initialize(args, device):
             eval_csv_file, eval_csv_writer = None, None
 
         if args.plot:
-            from tensorboardX import SummaryWriter
+            from torch.utils.tensorboard import SummaryWriter
             current_time = datetime.now().strftime('%b%d_%H-%M-%S')
             log_dir = os.path.join(args.log_dir, current_time + '_' + socket.gethostname())
             summary_writer = SummaryWriter(log_dir=log_dir)
@@ -129,7 +118,6 @@ def log_initialize(args, device):
         print('PyTorch  : {}'.format(torch.__version__))
         print('CUDA     : {}'.format(torch.backends.cudnn.m.cuda))
         print('CUDNN    : {}'.format(torch.backends.cudnn.version()))
-        print('APEX     : {}'.format('.'.join([str(i) for i in apex.amp.__version__.VERSION])))
         print('GYM      : {}'.format(gym.version.VERSION))
         print()
 
@@ -151,11 +139,6 @@ def model_initialize(args, model, device):
         optimizer = optim.RMSprop(model.parameters(), lr=args.lr, eps=args.eps, alpha=args.alpha)
 
     if device.type == 'cuda':
-        model, optimizer = amp.initialize(model, optimizer,
-                                          opt_level=args.opt_level,
-                                          loss_scale=args.loss_scale
-                                         )
-
         if args.distributed:
             model = DDP(model, delay_allreduce=True)
 

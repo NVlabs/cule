@@ -89,7 +89,6 @@ def initialize_validation(args, device):
 
     val_env = AtariEnv(args.env_name, 1, color_mode='gray',
                        device='cpu', rescale=True,
-                       clip_rewards=args.reward_clip,
                        episodic_life=True, repeat_prob=0.0)
     val_env.train()
 

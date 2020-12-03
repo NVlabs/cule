@@ -27,7 +27,7 @@ def update_mean_var_count_from_moments(mean, var, count, batch_mean, batch_var, 
     new_mean = mean + delta * batch_count / tot_count
     m_a = var * count
     m_b = batch_var * batch_count
-    M2 = m_a + m_b + torch.pow(delta, 2) * count * batch_count / tot_count
+    M2 = m_a + m_b + torch.pow(delta, 2).double() * count * batch_count / tot_count
     new_var = M2 / tot_count
     new_count = tot_count
 

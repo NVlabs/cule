@@ -15,6 +15,7 @@ import socket
 import time
 import torch
 import torch.cuda.nvtx as nvtx
+from torch.utils.tensorboard import SummaryWriter
 
 from datetime import datetime
 from tqdm import tqdm
@@ -112,8 +113,7 @@ def worker(gpu, ngpus_per_node, args):
         test_env.reset()
     else:
         test_env = AtariEnv(args.env_name, args.evaluation_episodes, color_mode='gray',
-                            device='cpu', rescale=True, clip_rewards=False,
-                            episodic_life=False, repeat_prob=0.0, frameskip=4)
+                            device='cpu', rescale=True, episodic_life=False, repeat_prob=0.0, frameskip=4)
 
     # Agent
     dqn = Agent(args, test_env.action_space)
@@ -162,7 +162,6 @@ def worker(gpu, ngpus_per_node, args):
                 csv_writer, csv_file = None, None
 
             if args.plot:
-                from tensorboardX import SummaryWriter
                 current_time = datetime.now().strftime('%b%d_%H-%M-%S')
                 log_dir = os.path.join(args.log_dir, current_time + '_' + socket.gethostname())
                 writer = SummaryWriter(log_dir=log_dir)
@@ -181,7 +180,6 @@ def worker(gpu, ngpus_per_node, args):
         else:
             train_env = AtariEnv(args.env_name, args.num_ales, color_mode='gray',
                                  device=env_device, rescale=True,
-                                 clip_rewards=args.reward_clip,
                                  episodic_life=True, repeat_prob=0.0)
             train_env.train()
             observation = train_env.reset(initial_steps=args.ale_start_steps, verbose=args.verbose).clone().squeeze(-1)
