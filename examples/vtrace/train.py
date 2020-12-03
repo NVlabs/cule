@@ -16,11 +16,6 @@ from a2c.helper import callback, format_time, gen_data
 from a2c.model import ActorCritic
 from a2c.test import test
 
-try:
-    from apex import amp
-except ImportError:
-    raise ImportError('Please install apex from https://www.github.com/nvidia/apex to run this example.')
-
 def worker(gpu, ngpus_per_node, args):
     env_device, train_device = args_initialize(gpu, ngpus_per_node, args)
 
@@ -292,24 +287,11 @@ def worker(gpu, ngpus_per_node, args):
                 fps = benchmark_steps * args.num_ales * args.num_steps_per_update / elapsed_time
 
                 csv_writer.writerow([args.env_name, args.num_ales, elapsed_time / benchmark_steps, fps, backend_name, 'inference'])
-                print('Benchmark - inference: ' + str(round(fps)) + ' PFS') 
-           
+                print('Benchmark - inference: ' + str(round(fps)) + ' PFS')
+
         n_minibatch = (n_minibatch + 1) % args.num_minibatches
         min_ale_index = int(n_minibatch * minibatch_size)
         max_ale_index = min_ale_index + minibatch_size
-
-        # compute v-trace using the recursive method (remark 1 in IMPALA paper)
-        # value_next_step, logit = model(states[-1:, min_ale_index:max_ale_index, :, : ,:].contiguous().view(-1, *states.size()[-3:]))
-        # returns[-1, min_ale_index:max_ale_index] = value_next_step.squeeze()
-        # for step in reversed(range(args.num_steps)):
-        #     value, logit = model(states[step, min_ale_index:max_ale_index, :, : ,:].contiguous().view(-1, *states.size()[-3:]))
-        #     pis = F.softmax(logit, dim=1).gather(1, actions[step, min_ale_index:max_ale_index].view(-1).unsqueeze(-1)).view(-1)
-        #     c = torch.clamp(pis / mus[step, min_ale_index:max_ale_index], max=c_)
-        #     rhos[step, :] = torch.clamp(pis / mus[step, min_ale_index:max_ale_index], max=rho_)
-        #     delta_value = rhos[step, :] * (rewards[step, min_ale_index:max_ale_index] + (args.gamma * value_next_step - value).squeeze())
-        #     returns[step, min_ale_index:max_ale_index] = value.squeeze() + delta_value + args.gamma * c * \
-        #             (returns[step + 1, min_ale_index:max_ale_index] - value_next_step.squeeze())
-        #     value_next_step = value
 
         nvtx.range_push('train:compute_values')
         value, logit = model(states[:, min_ale_index:max_ale_index, :, :, :].contiguous().view(-1, *states.size()[-3:]))
@@ -347,26 +329,18 @@ def worker(gpu, ngpus_per_node, args):
         nvtx.range_push('train:backprop')
         loss = value_loss * args.value_loss_coef + policy_loss - dist_entropy * args.entropy_coef
         optimizer.zero_grad()
-
-        if args.cpu_train:
-            loss.backward()
-            master_params = model.parameters()
-        else:
-            with amp.scale_loss(loss, optimizer) as scaled_loss:
-                scaled_loss.backward()
-            master_params = amp.master_params(optimizer)
-
-        torch.nn.utils.clip_grad_norm_(master_params, args.max_grad_norm)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
         optimizer.step()
         nvtx.range_pop()
 
         nvtx.range_push('train:next_states')
         for step in range(0, args.num_steps_per_update):
-            states[:-1, :, :, :, :] = states[1:, :, :, : ,:]
-            rewards[:-1, :] = rewards[1:, :]
-            actions[:-1, :] = actions[1:, :]
-            masks[:-1, :] = masks[1:, :]
-            mus[:-1, :] = mus[1:, :]
+            states[:-1] = states[1:].clone()
+            rewards[:-1] = rewards[1:]
+            actions[:-1] = actions[1:]
+            masks[:-1] = masks[1:]
+            mus[:-1] = mus[1:]
         nvtx.range_pop()
 
         torch.cuda.synchronize()
@@ -391,13 +365,13 @@ def worker(gpu, ngpus_per_node, args):
         if args.benchmark:
             if update == benchmark_steps:
                 benchmark_start_time = time.time()
-            if update == 2 * benchmark_steps: 
+            if update == 2 * benchmark_steps:
                 elapsed_time = time.time() - benchmark_start_time
                 fps = benchmark_steps * args.num_ales * args.num_steps_per_update / elapsed_time
 
                 csv_writer.writerow([args.env_name, args.num_ales, elapsed_time / benchmark_steps, fps, backend_name, 'training'])
-                print('Benchmark - training: ' + str(round(fps)) + ' PFS')      
-                
+                print('Benchmark - training: ' + str(round(fps)) + ' PFS')
+
                 csv_file.close()
                 break
 
