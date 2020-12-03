@@ -9,7 +9,7 @@ from distutils.cmd import Command
 from setuptools import find_packages, setup, Extension
 from examples.utils.runtime import Runtime
 
-codes = [arch.split('_')[-1] for arch in torch.cuda.get_arch_list()]
+codes = [arch[-2] + '0' for arch in torch.cuda.get_arch_list()]
 arch_gencode = ['-arch=sm_' + codes[0]] + ['-gencode=arch=compute_{0},code=sm_{0}'.format(code) for code in codes]
 
 base_dir = os.path.dirname(os.path.realpath(__file__))
@@ -21,8 +21,8 @@ sources = [os.path.join('torchcule', f) for f in ['frontend.cpp', 'backend.cu']]
 third_party_dir = os.path.join(base_dir, 'third_party')
 include_dirs = [base_dir, os.path.join(third_party_dir, 'agency'), os.path.join(third_party_dir, 'pybind11', 'include'), CUDA['include']]
 libraries = ['gomp', 'z']
-cxx_flags = []
-nvcc_flags = arch_gencode + ['-O3', '-Xptxas=-v', '-Xcompiler=-Wall,-Wextra,-fPIC']
+cxx_flags = ['-std=c++14']
+nvcc_flags = arch_gencode + ['-O3', '-Xptxas=-v', '-Xcompiler=-Wall,-Wextra,-fPIC,-std=c++14']
 
 parser = argparse.ArgumentParser('CuLE', add_help=False)
 parser.add_argument('--fastbuild', action='store_true', default=False, help='Build CuLE supporting only 2K roms')
