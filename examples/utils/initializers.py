@@ -6,6 +6,7 @@ import os
 import socket
 import torch
 import torch.optim as optim
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 from datetime import datetime
 from torchcule.atari import Env as AtariEnv
