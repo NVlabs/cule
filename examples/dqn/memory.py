@@ -142,7 +142,7 @@ class ReplayMemory():
             weights = self.weights
 
         ale_indices = indices % self.num_ales
-        step_indices = indices / self.num_ales
+        step_indices = indices // self.num_ales
 
         # Create un-discretised state and nth next state
         base_frame_numbers = self.frame_number[ale_indices, step_indices + self.history - 1].unsqueeze(-1).expand(-1, self.history)
