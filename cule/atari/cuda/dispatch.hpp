@@ -129,7 +129,8 @@ void
 step(cule::cuda::parallel_execution_policy& policy,
      Wrapper& wrap,
      const bool fire_reset,
-     const Action* actionsBuffer,
+     const Action* playerABuffer,
+     const Action* playerBBuffer,
      bool* doneBuffer)
 {
     using State_t = typename Wrapper::State_t;
@@ -144,7 +145,8 @@ step(cule::cuda::parallel_execution_policy& policy,
         wrap.states_ptr,
         wrap.ram_ptr,
         wrap.tia_update_ptr,
-        actionsBuffer,
+        playerABuffer,
+        playerBBuffer,
         doneBuffer);
     // CULE_CUDA_PEEK_AND_SYNC;
 }

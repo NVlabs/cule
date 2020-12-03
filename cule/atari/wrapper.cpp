@@ -115,19 +115,11 @@ void
 wrapper::
 step(ExecutionPolicy&& policy,
      const bool fire_reset,
-     const Action* actionsBuffer,
+     const Action* playerABuffer,
+     const Action* playerBBuffer,
      bool* doneBuffer)
 {
-    ROM_SWITCH(dispatch::step, policy, *this, fire_reset, actionsBuffer, doneBuffer)
-}
-
-template<typename ExecutionPolicy>
-void
-wrapper::
-two_step(ExecutionPolicy&&,
-         const Action*,
-         const Action*)
-{
+    ROM_SWITCH(dispatch::step, policy, *this, fire_reset, playerABuffer, playerBBuffer, doneBuffer)
 }
 
 template<typename ExecutionPolicy>

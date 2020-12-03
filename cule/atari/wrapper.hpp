@@ -72,7 +72,8 @@ public:
     template<typename ExecutionPolicy>
     void step(ExecutionPolicy&& policy,
               const bool fire_reset,
-              const Action* actionsBuffer,
+              const Action* player_a_buffer,
+              const Action* player_b_buffer,
               bool* doneBuffer);
 
     template<typename ExecutionPolicy>
@@ -81,11 +82,6 @@ public:
                   bool* doneBuffer,
                   float* rewardsBuffer,
                   int32_t* livesBuffer);
-
-    template<typename ExecutionPolicy>
-    void two_step(ExecutionPolicy&& policy,
-                  const Action* player_a_buffer,
-                  const Action* player_b_buffer);
 
     template<typename ExecutionPolicy>
     void preprocess(ExecutionPolicy&& policy,

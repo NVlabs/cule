@@ -148,7 +148,8 @@ struct step_functor
                     const bool fire_reset,
                     State_t* states_buffer,
                     uint32_t* tia_update_buffer,
-                    Action* action_buffer,
+                    Action* player_a_buffer,
+                    Action* player_b_buffer,
                     bool* done_buffer) const
     {
         if((done_buffer != nullptr) && done_buffer[self.index()])
@@ -167,9 +168,13 @@ struct step_functor
         Action player_a_action = ACTION_NOOP;
         Action player_b_action = ACTION_NOOP;
 
-        if(action_buffer != nullptr)
+        if(player_a_buffer != nullptr)
         {
-            player_a_action = action_buffer[self.index()];
+            player_a_action = player_a_buffer[self.index()];
+        }
+        if(player_b_buffer != nullptr)
+        {
+            player_b_action = player_b_buffer[self.index()];
         }
 
         if(fire_reset && s.tiaFlags[FLAG_ALE_LOST_LIFE])

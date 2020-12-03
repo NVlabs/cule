@@ -99,11 +99,11 @@ if __name__ == '__main__':
     def updatefig(*args):
         global env, player_a_action, player_b_action, model, states, counter, num_stack, img2, imgs
 
-        observation = env.two_player_step(player_a_action, player_b_action)[0][0]
+        observation = env.step(player_a_action, player_b_action)[0][0]
         imgs[0].set_array(observation.numpy())
 
         if ((counter % num_stack) == 0) or (counter < num_stack):
-            states[:-1] = states[1:]
+            states[:-1] = states[1:].clone()
             states[-1] = downsample(observation).squeeze(-1)
             imgs[1].set_array(np.hstack(states.numpy()))
 

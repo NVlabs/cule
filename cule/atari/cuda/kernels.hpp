@@ -167,7 +167,8 @@ void step_kernel(const uint32_t num_envs,
                  State_t* states_buffer,
                  uint8_t* ram_buffer,
                  uint32_t* tia_update_buffer,
-                 const Action* actions_buffer,
+                 const Action* player_a_buffer,
+                 const Action* player_b_buffer,
                  bool* done_buffer)
 {
     enum
@@ -200,16 +201,21 @@ void step_kernel(const uint32_t num_envs,
         }
     }
 
-    Action action = ACTION_NOOP;
+    Action player_a_action = ACTION_NOOP;
+    Action player_b_action = ACTION_NOOP;
 
-    if(actions_buffer != nullptr)
+    if(player_a_buffer != nullptr)
     {
-        action = actions_buffer[global_index];
+        player_a_action = player_a_buffer[global_index];
+    }
+    if(player_b_buffer != nullptr)
+    {
+        player_b_action = player_b_buffer[global_index];
     }
 
     if(fire_reset && s.tiaFlags[FLAG_ALE_LOST_LIFE])
     {
-        action = ACTION_FIRE;
+        player_a_action = ACTION_FIRE;
         s.tiaFlags.clear(FLAG_ALE_LOST_LIFE);
     }
 
@@ -217,7 +223,7 @@ void step_kernel(const uint32_t num_envs,
     s.rom = gpu_rom;
     s.tia_update_buffer = tia_update_buffer + (ENV_UPDATE_SIZE * global_index);
 
-    Environment_t::act(s, action);
+    Environment_t::act(s, player_a_action, player_b_action);
 
     {
         state_store_load_helper(*states_buffer, s);

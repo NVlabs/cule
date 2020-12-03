@@ -253,7 +253,7 @@ class Env(torchcule_atari.AtariEnv):
 
         return self.observations1
 
-    def step(self, actions, asyn=False):
+    def step(self, player_a_actions, player_b_actions=None, asyn=False):
         """Take a step in the environment by apply a set of actions
 
         Args:
@@ -267,20 +267,27 @@ class Env(torchcule_atari.AtariEnv):
         """
 
 	    # sanity checks
-        assert actions.size(0) == self.num_envs
+        assert player_a_actions.size(0) == self.num_envs
 
         self.rewards.zero_()
         self.observations1.zero_()
         self.observations2.zero_()
         self.done.zero_()
 
-        self.actions = self.action_set[actions.long()]
+        self.player_a_actions = self.action_set[player_a_actions.long()]
+        player_a_actions_ptr = self.player_a_actions.data_ptr()
+
+        if player_b_actions is not None:
+            self.player_b_actions = self.action_set[player_b_actions.long()]
+            player_b_actions_ptr = self.player_b_actions.data_ptr()
+        else:
+            player_b_actions_ptr = 0
 
         if self.is_cuda:
             self.sync_other_stream()
 
         for frame in range(self.frameskip):
-            super(Env, self).step(self.fire_reset and self.is_training, self.actions.data_ptr(), self.done.data_ptr())
+            super(Env, self).step(self.fire_reset and self.is_training, player_a_actions_ptr, player_b_actions_ptr, self.done.data_ptr())
             self.get_data(self.episodic_life, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
             if frame == (self.frameskip - 2):
                 self.generate_frames(self.rescale, False, self.num_channels, self.observations2.data_ptr())

@@ -65,6 +65,7 @@ reset(ExecutionPolicy&& policy,
                             wrap.cached_states_ptr,
                             wrap.cached_tia_update_ptr,
                             nullptr,
+                            nullptr,
                             nullptr);
         agency::bulk_invoke(policy(1),
                             preprocess_functor<Environment>{},
@@ -92,6 +93,7 @@ reset(ExecutionPolicy&& policy,
                             true,
                             wrap.cached_states_ptr + i,
                             wrap.cached_tia_update_ptr + (i * ENV_UPDATE_SIZE),
+                            nullptr,
                             nullptr,
                             nullptr);
         agency::bulk_invoke(policy(1),
@@ -184,7 +186,8 @@ void
 step(ExecutionPolicy&& policy,
      Wrapper& wrap,
      const bool fire_reset,
-     const Action* actionsBuffer,
+     const Action* playerABuffer,
+     const Action* playerBBuffer,
      bool* doneBuffer)
 {
     agency::bulk_invoke(policy(wrap.size()),
@@ -192,7 +195,8 @@ step(ExecutionPolicy&& policy,
                         fire_reset,
                         wrap.states_ptr,
                         wrap.tia_update_ptr,
-                        (Action*) actionsBuffer,
+                        (Action*) playerABuffer,
+                        (Action*) playerBBuffer,
                         doneBuffer);
 }
 

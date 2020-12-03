@@ -138,16 +138,17 @@ set_states(const size_t num_states,
 void
 AtariEnv::
 step(const bool fire_reset,
-     const cule::atari::Action* actionsBuffer,
+     const cule::atari::Action* playerABuffer,
+     const cule::atari::Action* playerBBuffer,
      bool* doneBuffer)
 {
     if(use_cuda)
     {
-        super_t::step(get_policy<cule_policy>(), fire_reset, actionsBuffer, doneBuffer);
+        super_t::step(get_policy<cule_policy>(), fire_reset, playerABuffer, playerBBuffer, doneBuffer);
     }
     else
     {
-        super_t::step(get_policy<agency::parallel_execution_policy>(), fire_reset, actionsBuffer, doneBuffer);
+        super_t::step(get_policy<agency::parallel_execution_policy>(), fire_reset, playerABuffer, playerBBuffer, doneBuffer);
     }
 }
 
@@ -165,21 +166,6 @@ get_data(const bool episodic_life,
     else
     {
         super_t::get_data(get_policy<agency::parallel_execution_policy>(), episodic_life, doneBuffer, rewardsBuffer, livesBuffer);
-    }
-}
-
-void
-AtariEnv::
-two_step(const cule::atari::Action* playerABuffer,
-         const cule::atari::Action* playerBBuffer)
-{
-    if(use_cuda)
-    {
-        super_t::two_step(get_policy<cule_policy>(), playerABuffer, playerBBuffer);
-    }
-    else
-    {
-        super_t::two_step(get_policy<agency::parallel_execution_policy>(), playerABuffer, playerBBuffer);
     }
 }
 
