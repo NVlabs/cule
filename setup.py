@@ -21,8 +21,8 @@ sources = [os.path.join('torchcule', f) for f in ['frontend.cpp', 'backend.cu']]
 third_party_dir = os.path.join(base_dir, 'third_party')
 include_dirs = [base_dir, os.path.join(third_party_dir, 'agency'), os.path.join(third_party_dir, 'pybind11', 'include'), CUDA['include']]
 libraries = ['gomp', 'z']
-cxx_flags = ['-std=c++14']
-nvcc_flags = arch_gencode + ['-O3', '-Xptxas=-v', '-Xcompiler=-Wall,-Wextra,-fPIC,-std=c++14']
+cxx_flags = []
+nvcc_flags = arch_gencode + ['-O3', '-Xptxas=-v', '-Xcompiler=-Wall,-Wextra,-fPIC']
 
 parser = argparse.ArgumentParser('CuLE', add_help=False)
 parser.add_argument('--fastbuild', action='store_true', default=False, help='Build CuLE supporting only 2K roms')
