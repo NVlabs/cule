@@ -14,117 +14,118 @@ struct encode_states_functor
                     cule::atari::frame_state*,
                     uint8_t* input_ram) const
     {
-        const AtariState& s = src_states[self.index()];
-        cule::atari::state& t = dst_states[self.index()];
+        using Environment_t = cule::atari::environment<cule::atari::ROM_2K>;
+        using ALE_t = typename Environment_t::ALE_t;
+        using TIA_t = typename Environment_t::TIA_t;
 
-        t.bank = s.bank;
-        t.clockAtLastUpdate = s.clockAtLastUpdate;
-        t.clockWhenFrameStarted = s.clockWhenFrameStarted;
-        t.collision = s.collision;
-        t.cpuCycles = s.cycles;
-        t.cyclesWhenTimerSet = s.cyclesWhenTimerSet;
-        t.cyclesWhenInterruptReset = s.cyclesWhenInterruptReset;
-        t.dumpDisabledCycle = s.dumpDisabledCycle;
-        t.lastHMOVEClock = s.lastHMOVEClock;
-        t.resistance = s.left_paddle;
-        t.score = s.score;
+        const size_t index = self.index();
 
-        t.ram = reinterpret_cast<uint32_t*>(input_ram + (256 * self.index()));
-        uint8_t* ram_ptr = reinterpret_cast<uint8_t*>(t.ram);
+        const AtariState& ts = src_states[index];
+        cule::atari::state& s = dst_states[index];
+        /* cule::atari::frame_state& fs = dst_frame_states[index]; */
+
+        s.resistance = ts.left_paddle;
+        Environment_t::setFrameNumber(s, cule::atari::ENV_BASE_FRAMES + 10 + ts.frame_number);
+
+        s.cpuCycles = ts.cycles;
+
+        s.A = ts.A;
+        s.X = ts.X;
+        s.Y = ts.Y;
+        s.SP = ts.SP;
+        s.PC = ts.PC;
+        UPDATE_FIELD(s.sysFlags.asBitField(), cule::atari::FIELD_SYS_INT, ts.IR);
+
+        s.sysFlags.template change<cule::atari::FLAG_NEGATIVE>(ts.N);
+        s.sysFlags.template change<cule::atari::FLAG_OVERFLOW>(ts.V);
+        s.sysFlags.template change<cule::atari::FLAG_BREAK>(ts.B);
+        s.sysFlags.template change<cule::atari::FLAG_DECIMAL>(ts.D);
+        s.sysFlags.template change<cule::atari::FLAG_INTERRUPT_OFF>(ts.I);
+        s.sysFlags.template change<cule::atari::FLAG_ZERO>(ts.notZ == 0);
+        s.sysFlags.template change<cule::atari::FLAG_CARRY>(ts.C);
+        s.sysFlags.set(cule::atari::FLAG_RESERVED);
+        s.sysFlags.clear(cule::atari::FLAG_CPU_HALT);
+        s.sysFlags.clear(cule::atari::FLAG_CPU_LAST_READ);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_IS_NTSC>(cart.is_ntsc());
+
+        s.ram = reinterpret_cast<uint32_t*>(input_ram + (256 * index));
+        uint8_t* ram_ptr = reinterpret_cast<uint8_t*>(s.ram);
         for(size_t i = 0; i < cart.ram_size(); i++)
         {
-            ram_ptr[i] = s.ram[i];
+            ram_ptr[i] = ts.ram[i];
         }
 
-        t.A = s.A;
-        t.X = s.X;
-        t.Y = s.Y;
-        t.SP = s.SP;
-        t.PC = s.PC;
-        t.CurrentGRP0 = s.currentGRP0;
-        t.CurrentGRP1 = s.currentGRP1;
-        t.M0CosmicArkCounter = s.M0CosmicArkCounter;
-        t.VSYNCFinishClock = s.VSYNCFinishClock;
+        UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_TIMER, ts.timer);
+        UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_SHIFT, ts.intervalShift);
+        s.cyclesWhenTimerSet = ts.cyclesWhenTimerSet;
+        s.cyclesWhenInterruptReset = ts.cyclesWhenInterruptReset;
+        s.tiaFlags.template change<cule::atari::FLAG_RIOT_READ_INT>(ts.timerReadAfterInterrupt != 0);
+        UPDATE_FIELD(s.riotData, cule::atari::FIELD_RIOT_DDRA, ts.DDRA);
+        ALE_t::set_id(s, cart.game_id());
 
-        t.sysFlags.template change<cule::atari::FLAG_CARRY>(s.C);
-        t.sysFlags.template change<cule::atari::FLAG_ZERO>(s.notZ == 0);
-        t.sysFlags.template change<cule::atari::FLAG_INTERRUPT_OFF>(s.I);
-        t.sysFlags.template change<cule::atari::FLAG_DECIMAL>(s.D);
-        t.sysFlags.template change<cule::atari::FLAG_BREAK>(s.B);
-        t.sysFlags.set(cule::atari::FLAG_RESERVED);
-        t.sysFlags.template change<cule::atari::FLAG_OVERFLOW>(s.V);
-        t.sysFlags.template change<cule::atari::FLAG_NEGATIVE>(s.N);
-        t.sysFlags.template change<cule::atari::FLAG_CON_PADDLES>(cart.use_paddles());
-        t.sysFlags.template change<cule::atari::FLAG_CON_SWAP>(cart.swap_paddles() || cart.swap_ports());
-        t.sysFlags.set(cule::atari::FLAG_SW_RESET_OFF);
-        t.sysFlags.set(cule::atari::FLAG_SW_SELECT_OFF);
-        t.sysFlags.set(cule::atari::FLAG_SW_UNUSED1);
-        t.sysFlags.set(cule::atari::FLAG_SW_COLOR);
-        t.sysFlags.set(cule::atari::FLAG_SW_UNUSED2);
-        t.sysFlags.set(cule::atari::FLAG_SW_UNUSED3);
-        t.sysFlags.template change<cule::atari::FLAG_SW_LEFT_DIFFLAG_A>(!cart.player_left_difficulty_B());
-        t.sysFlags.template change<cule::atari::FLAG_SW_RIGHT_DIFFLAG_A>(!cart.player_right_difficulty_B());
-        t.sysFlags.set(cule::atari::FLAG_CPU_WRITE_BACK);
-        t.sysFlags.template change<cule::atari::FLAG_INT_NMI>((s.executionStatus & 0x08) != 0);
-        t.sysFlags.template change<cule::atari::FLAG_INT_IRQ>((s.executionStatus & 0x04) != 0);
-        t.sysFlags.template change<cule::atari::FLAG_CPU_ERROR>((s.executionStatus & 0x02) != 0);
-        // t.sysFlags.template change<cule::atari::FLAG_CPU_HALT>((s.executionStatus & 0x01) != 0);
+        s.clockWhenFrameStarted = ts.clockWhenFrameStarted;
+        /* ds.clockStartDisplay = TIA_t::clockStartDisplay(s); */
+        /* ds.clockStopDisplay = TIA_t::clockStopDisplay(s); */
+        s.clockAtLastUpdate = ts.clockAtLastUpdate;
+        /* ds.clocksToEndOfScanLine = INT_MAX; */
+        /* ds.scanlineCountForLastFrame = INT_MAX; */
+        /* ds.currentScanline = TIA_t::currentScanline(s); */
+        s.VSYNCFinishClock = ts.VSYNCFinishClock;
+        UPDATE_FIELD(s.tiaFlags.asBitField(), cule::atari::FIELD_TIA_ENABLED, ts.enabledObjects);
+        /* ds.VSYNC = INT_MAX; */
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_VBLANK1>((ts.VBLANK & 0x80) != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_VBLANK2>((ts.VBLANK & 0x02) != 0);
+        UPDATE_FIELD(s.PF, cule::atari::FIELD_NUSIZ0_MODE, ts.NUSIZ0 & 0x07);
+        UPDATE_FIELD(s.PF, cule::atari::FIELD_NUSIZ0_SIZE, (ts.NUSIZ0 & 0x30) >> 4);
+        UPDATE_FIELD(s.PF, cule::atari::FIELD_NUSIZ1_MODE, ts.NUSIZ1 & 0x07);
+        UPDATE_FIELD(s.PF, cule::atari::FIELD_NUSIZ1_SIZE, (ts.NUSIZ1 & 0x30) >> 4);
+        /* ds.COLUP0 = SELECT_FIELD(fs.Color, cule::atari::FIELD_COLUP0); */
+        /* ds.COLUP1 = SELECT_FIELD(fs.Color, cule::atari::FIELD_COLUP1); */
+        /* ds.COLUPF = SELECT_FIELD(fs.Color, cule::atari::FIELD_COLUPF); */
+        /* ds.COLUBK = SELECT_FIELD(fs.Color, cule::atari::FIELD_COLUBK); */
+        UPDATE_FIELD(s.PF,  cule::atari::FIELD_CTRLPF, (ts.CTRLPF & 0x30) >> 4);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_CTRLPF>((ts.CTRLPF & 0x01) == 0x01);
+        /* ds.playfieldPriorityAndScore = fs.playfieldPriorityAndScore; */
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_REFP0>(ts.REFP0 != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_REFP1>(ts.REFP0 != 0);
+        UPDATE_FIELD(s.PF,  cule::atari::FIELD_PFALL, ts.PF);
+        UPDATE_FIELD(s.GRP, cule::atari::FIELD_GRP0, ts.GRP0);
+        UPDATE_FIELD(s.GRP, cule::atari::FIELD_GRP1, ts.GRP1);
+        UPDATE_FIELD(s.GRP, cule::atari::FIELD_DGRP0, ts.DGRP0);
+        UPDATE_FIELD(s.GRP, cule::atari::FIELD_DGRP1, ts.DGRP1);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_ENAM0>(ts.ENAM0 != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_ENAM1>(ts.ENAM1 != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_ENABL>(ts.ENABL != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_DENABL>(ts.DENABL != 0);
+        UPDATE_FIELD(s.HM, cule::atari::FIELD_HMP0, ts.HMP0);
+        UPDATE_FIELD(s.HM, cule::atari::FIELD_HMP1, ts.HMP1);
+        UPDATE_FIELD(s.HM, cule::atari::FIELD_HMM0, ts.HMM0);
+        UPDATE_FIELD(s.HM, cule::atari::FIELD_HMM1, ts.HMM1);
+        UPDATE_FIELD(s.HM, cule::atari::FIELD_HMBL, ts.HMBL);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELP0>(ts.VDELP0 != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELP1>(ts.VDELP0 != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_VDELBL>(ts.VDELBL != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_RESMP0>(ts.RESMP0 != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_RESMP1>(ts.RESMP1 != 0);
+        s.collision = ts.collision;
+        UPDATE_FIELD(s.POS, cule::atari::FIELD_POSP0, ts.POSP0);
+        UPDATE_FIELD(s.POS, cule::atari::FIELD_POSP1, ts.POSP1);
+        UPDATE_FIELD(s.POS, cule::atari::FIELD_POSM0, ts.POSM0);
+        UPDATE_FIELD(s.POS, cule::atari::FIELD_POSM1, ts.POSM1);
+        UPDATE_FIELD(s.HM, cule::atari::FIELD_POSBL, ts.POSBL);
+        s.CurrentGRP0 = ts.currentGRP0;
+        s.CurrentGRP1 = ts.currentGRP1;
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ALLOW>(ts.HMOVEBlankEnabled != 0);
+        s.lastHMOVEClock = ts.lastHMOVEClock;
+        /* ds.M0CosmicArkMotionEnabled = INT_MAX; */
+        /* ds.M0CosmicArkCounter = INT_MAX; */
+        s.tiaFlags.template change<cule::atari::FLAG_TIA_DUMP>(ts.dumpEnabled != 0);
+        s.dumpDisabledCycle = ts.dumpDisabledCycle;
 
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_IS_NTSC>(cart.is_ntsc());
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_VBLANK1>((s.VBLANK & 0x80) != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_VBLANK2>((s.VBLANK & 0x02) != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_CTRLPF>((s.CTRLPF & 0x01) != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_REFP0>(s.REFP0 != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_REFP1>(s.REFP1 != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_ENAM0>(s.ENAM0 != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_ENAM1>(s.ENAM1 != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_ENABL>(s.ENABL != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_DENABL>(s.DENABL != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_VDELP0>(s.VDELP0 != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_VDELP1>(s.VDELP1 != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_VDELBL>(s.VDELBL != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_RESMP0>(s.RESMP0 != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_RESMP1>(s.RESMP1 != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ALLOW>(cart.allow_hmove_blanks());
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_HMOVE_ENABLE>(s.HMOVEBlankEnabled);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_COSMIC_ARK>(s.M0CosmicArkMotionEnabled);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_DUMP>(s.dumpEnabled != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_TIA_Y_SHIFT>(cart.game_id() != cule::atari::games::GAME_UP_N_DOWN);
-        t.tiaFlags.template change<cule::atari::FLAG_RIOT_READ_INT>(s.timerReadAfterInterrupt != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_ALE_TERMINAL>(s.terminal != 0);
-        t.tiaFlags.template change<cule::atari::FLAG_ALE_STARTED>(s.started != 0);
-        UPDATE_FIELD(t.tiaFlags.asBitField(), cule::atari::FIELD_TIA_ENABLED, s.enabledObjects);
-
-        UPDATE_FIELD(t.frameData, cule::atari::FIELD_FRAME_NUMBER, cule::atari::ENV_BASE_FRAMES + 10 + s.frame_number);
-
-        UPDATE_FIELD(t.riotData, cule::atari::FIELD_RIOT_GAME, cart.game_id());
-        UPDATE_FIELD(t.riotData, cule::atari::FIELD_RIOT_TIMER, s.timer);
-        UPDATE_FIELD(t.riotData, cule::atari::FIELD_RIOT_SHIFT, s.intervalShift);
-        UPDATE_FIELD(t.riotData, cule::atari::FIELD_RIOT_DDRA, s.DDRA);
-
-        UPDATE_FIELD(t.PF, cule::atari::FIELD_NUSIZ0_MODE, s.NUSIZ0 & 0x07);
-        UPDATE_FIELD(t.PF, cule::atari::FIELD_NUSIZ0_SIZE, (s.NUSIZ0 & 0x30) >> 4);
-        UPDATE_FIELD(t.PF, cule::atari::FIELD_NUSIZ1_MODE, s.NUSIZ1 & 0x07);
-        UPDATE_FIELD(t.PF, cule::atari::FIELD_NUSIZ1_SIZE, (s.NUSIZ1 & 0x30) >> 4);
-        UPDATE_FIELD(t.PF, cule::atari::FIELD_CTRLPF, (s.CTRLPF & 0x30) >> 4);
-        UPDATE_FIELD(t.PF, cule::atari::FIELD_PFALL, s.PF);
-
-        UPDATE_FIELD(t.GRP, cule::atari::FIELD_GRP0, s.GRP0);
-        UPDATE_FIELD(t.GRP, cule::atari::FIELD_GRP1, s.GRP1);
-        UPDATE_FIELD(t.GRP, cule::atari::FIELD_DGRP0, s.DGRP0);
-        UPDATE_FIELD(t.GRP, cule::atari::FIELD_DGRP1, s.DGRP1);
-
-        UPDATE_FIELD(t.HM, cule::atari::FIELD_HMP0, s.HMP0);
-        UPDATE_FIELD(t.HM, cule::atari::FIELD_HMP1, s.HMP1);
-        UPDATE_FIELD(t.HM, cule::atari::FIELD_HMM0, s.HMM0);
-        UPDATE_FIELD(t.HM, cule::atari::FIELD_HMM1, s.HMM1);
-        UPDATE_FIELD(t.HM, cule::atari::FIELD_HMBL, s.HMBL);
-
-        UPDATE_FIELD(t.POS, cule::atari::FIELD_POSP0, s.POSP0);
-        UPDATE_FIELD(t.POS, cule::atari::FIELD_POSP1, s.POSP1);
-        UPDATE_FIELD(t.POS, cule::atari::FIELD_POSM0, s.POSM0);
-        UPDATE_FIELD(t.POS, cule::atari::FIELD_POSM1, s.POSM1);
-        UPDATE_FIELD(t.HM , cule::atari::FIELD_POSBL, s.POSBL);
+        s.bank = ts.bank;
+        s.score = ts.score;
+        s.tiaFlags.template change<cule::atari::FLAG_ALE_TERMINAL>(ts.terminal != 0);
+        s.tiaFlags.template change<cule::atari::FLAG_ALE_STARTED>(ts.started != 0);
     }
 };
 
@@ -168,6 +169,7 @@ struct decode_states_functor
         ds.Y = s.Y;
         ds.SP = valueOf(s.SP);
         ds.PC = valueOf(s.PC);
+        ds.IR = SELECT_FIELD(cule::atari::sys_flag_t(s.sysFlags).asBitField(), cule::atari::FIELD_SYS_INT);
 
         ds.N = s.sysFlags[cule::atari::FLAG_NEGATIVE];
         ds.V = s.sysFlags[cule::atari::FLAG_OVERFLOW];
@@ -211,7 +213,7 @@ struct decode_states_functor
         ds.COLUP1 = SELECT_FIELD(fs.Color, cule::atari::FIELD_COLUP1);
         ds.COLUPF = SELECT_FIELD(fs.Color, cule::atari::FIELD_COLUPF);
         ds.COLUBK = SELECT_FIELD(fs.Color, cule::atari::FIELD_COLUBK);
-        ds.CTRLPF = (SELECT_FIELD(s.PF,  cule::atari::FIELD_CTRLPF) << 4) + s.tiaFlags[cule::atari::FLAG_TIA_CTRLPF];
+        ds.CTRLPF = ((SELECT_FIELD(s.PF,  cule::atari::FIELD_CTRLPF) & 3) << 4) + s.tiaFlags[cule::atari::FLAG_TIA_CTRLPF];
         ds.playfieldPriorityAndScore = fs.playfieldPriorityAndScore;
         ds.REFP0 = s.tiaFlags[cule::atari::FLAG_TIA_REFP0];
         ds.REFP1 = s.tiaFlags[cule::atari::FLAG_TIA_REFP1];
@@ -242,10 +244,10 @@ struct decode_states_functor
         ds.POSBL = SELECT_FIELD(s.HM, cule::atari::FIELD_POSBL);
         ds.currentGRP0 = s.CurrentGRP0;
         ds.currentGRP1 = s.CurrentGRP1;
-        ds.HMOVEBlankEnabled = s.tiaFlags[cule::atari::FLAG_TIA_HMOVE_ENABLE];
+        ds.HMOVEBlankEnabled = s.tiaFlags[cule::atari::FLAG_TIA_HMOVE_ALLOW];
         ds.lastHMOVEClock = s.lastHMOVEClock;
-        ds.M0CosmicArkMotionEnabled = s.tiaFlags[cule::atari::FLAG_TIA_COSMIC_ARK];
-        ds.M0CosmicArkCounter = s.M0CosmicArkCounter;
+        ds.M0CosmicArkMotionEnabled = INT_MAX;
+        ds.M0CosmicArkCounter = INT_MAX;
         ds.dumpEnabled = s.tiaFlags[cule::atari::FLAG_TIA_DUMP];
         ds.dumpDisabledCycle = s.dumpDisabledCycle;
 
