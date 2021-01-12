@@ -410,6 +410,23 @@ set_states(const size_t num_states,
 
 void
 BfsAtariEnv::
+_step(const bool fire_reset,
+      const cule::atari::Action* playerABuffer,
+      const cule::atari::Action* playerBBuffer,
+      bool* doneBuffer)
+{
+    if(use_cuda)
+    {
+        super_t::_step(get_policy<cule_policy>(), fire_reset, playerABuffer, playerBBuffer, doneBuffer);
+    }
+    else
+    {
+        super_t::_step(get_policy<agency::parallel_execution_policy>(), fire_reset, playerABuffer, playerBBuffer, doneBuffer);
+    }
+}
+
+void
+BfsAtariEnv::
 step(const bool fire_reset,
      const size_t num_envs,
      bool* doneBuffer)

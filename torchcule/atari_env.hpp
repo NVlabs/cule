@@ -98,6 +98,11 @@ class BfsAtariEnv : public cule::atari::bfs_wrapper
                       const int32_t* indices,
                       const AtariState* states);
 
+      void _step(const bool fire_reset,
+                 const cule::atari::Action* playerABuffer,
+                 const cule::atari::Action* playerBBuffer,
+                 bool* doneBuffer);
+
       void step(const bool fire_reset,
                 const size_t num_envs,
                 bool* doneBuffer);

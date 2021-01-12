@@ -70,6 +70,13 @@ public:
                     const uint8_t* input_states_ram);
 
     template<typename ExecutionPolicy>
+    void _step(ExecutionPolicy&& policy,
+               const bool fire_reset,
+               const Action* player_a_buffer,
+               const Action* player_b_buffer,
+               bool* doneBuffer);
+
+    template<typename ExecutionPolicy>
     void step(ExecutionPolicy&& policy,
               const bool fire_reset,
               const size_t num_envs,

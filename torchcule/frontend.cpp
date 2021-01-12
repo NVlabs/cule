@@ -322,6 +322,14 @@ PYBIND11_MODULE(torchcule_atari, m) {
             env.reset_states();
         }
     )
+    .def("_step", [](BfsAtariEnv &env, const bool fire_reset, uint64_t playerABuffer, uint64_t playerBBuffer, uint64_t doneBuffer)
+        {
+            env._step(fire_reset,
+                      reinterpret_cast<AtariAction*>(playerABuffer),
+                      reinterpret_cast<AtariAction*>(playerBBuffer),
+                      reinterpret_cast<bool*>(doneBuffer));
+        }
+    )
     .def("step", [](BfsAtariEnv &env, const bool fire_reset, const size_t num_envs, uint64_t doneBuffer)
         {
             env.step(fire_reset,

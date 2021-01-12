@@ -113,6 +113,18 @@ reset_states(ExecutionPolicy&& policy)
 template<typename ExecutionPolicy>
 void
 bfs_wrapper::
+_step(ExecutionPolicy&& policy,
+     const bool fire_reset,
+     const Action* playerABuffer,
+     const Action* playerBBuffer,
+     bool* doneBuffer)
+{
+    ROM_SWITCH(dispatch::step, policy, *this, fire_reset, playerABuffer, playerBBuffer, doneBuffer)
+}
+
+template<typename ExecutionPolicy>
+void
+bfs_wrapper::
 step(ExecutionPolicy&& policy,
      const bool fire_reset,
      const size_t num_envs,

@@ -75,8 +75,7 @@ class BfsEnv(torchcule_atari.BfsAtariEnv):
 
         self.cart = Rom(env_name)
         num_envs = len(self.cart.minimal_actions()) ** max_depth
-        print('Allocating space for {} environments'.format(num_envs))
-        super(Env, self).__init__(self.cart, num_envs, max_noop_steps)
+        super(BfsEnv, self).__init__(self.cart, num_envs, max_noop_steps)
 
         self.device = torch.device(device)
         self.num_envs = num_envs
@@ -233,7 +232,7 @@ class BfsEnv(torchcule_atari.BfsAtariEnv):
             self.sync_other_stream()
             stream = torch.cuda.current_stream()
 
-        super(Env, self).reset(seeds.data_ptr())
+        super(BfsEnv, self).reset(seeds.data_ptr())
 
         if self.is_training:
             iterator = range(math.ceil(initial_steps / self.frameskip))
@@ -244,7 +243,7 @@ class BfsEnv(torchcule_atari.BfsAtariEnv):
 
             for _ in iterator:
                 actions = self.sample_random_actions()
-                self.step(actions, asyn=True)
+                self._step(actions, asyn=True)
 
         if self.is_cuda:
             self.sync_this_stream()
@@ -252,6 +251,59 @@ class BfsEnv(torchcule_atari.BfsAtariEnv):
                 stream.synchronize()
 
         return self.observations1
+
+    def _step(self, player_a_actions, player_b_actions=None, asyn=False):
+        """Take a step in the environment by apply a set of actions
+
+        Args:
+            actions (list[Action]): list of actions to apply to each environment
+
+        Returns:
+            ByteTensor: observations for each environment
+            IntTensor: sum of rewards for frameskip steps in each environment
+            ByteTensor: 'done' state for each environment
+            list[str]: miscellaneous information (currently unused)
+        """
+
+	    # sanity checks
+        assert player_a_actions.size(0) == self.num_envs
+
+        self.rewards.zero_()
+        self.observations1.zero_()
+        self.observations2.zero_()
+        self.done.zero_()
+
+        self.player_a_actions = self.action_set[player_a_actions.long()]
+        player_a_actions_ptr = self.player_a_actions.data_ptr()
+
+        if player_b_actions is not None:
+            self.player_b_actions = self.action_set[player_b_actions.long()]
+            player_b_actions_ptr = self.player_b_actions.data_ptr()
+        else:
+            player_b_actions_ptr = 0
+
+        if self.is_cuda:
+            self.sync_other_stream()
+
+        for frame in range(self.frameskip):
+            super(BfsEnv, self).step(self.fire_reset and self.is_training, player_a_actions_ptr, player_b_actions_ptr, self.done.data_ptr())
+            self.get_data(self.episodic_life, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
+            if frame == (self.frameskip - 2):
+                self.generate_frames(self.rescale, False, self.num_channels, self.observations2.data_ptr())
+
+        self.reset_states()
+        self.generate_frames(self.rescale, True, self.num_channels, self.observations1.data_ptr())
+
+        if self.is_cuda:
+            self.sync_this_stream()
+            if not asyn:
+                torch.cuda.current_stream().synchronize()
+
+        self.observations1 = torch.max(self.observations1, self.observations2)
+
+        info = {'ale.lives': self.lives}
+
+        return self.observations1, self.rewards, self.done, info
 
     def step(self, asyn=False):
         """Take a step in the environment by apply a set of actions
@@ -277,7 +329,7 @@ class BfsEnv(torchcule_atari.BfsAtariEnv):
         for depth in range(self.max_depth):
             num_envs = len(self.cart.minimal_actions()) ** depth
             for frame in range(self.frameskip):
-                super(Env, self).step(self.fire_reset and self.is_training, num_envs, self.done.data_ptr())
+                super(BfsEnv, self).step(self.fire_reset and self.is_training, num_envs, self.done.data_ptr())
                 self.get_data(self.episodic_life, num_envs, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
                 if depth == (self.max_depth - 1) and frame == (self.frameskip - 2):
                     self.generate_frames(self.rescale, False, self.num_channels, self.observations2.data_ptr())
@@ -298,7 +350,7 @@ class BfsEnv(torchcule_atari.BfsAtariEnv):
 
     def get_states(self, indices):
         from torchcule.atari.state import State
-        return [State(s) for s in super(Env, self).get_states([i for i in indices.cpu()])]
+        return [State(s) for s in super(BfsEnv, self).get_states([i for i in indices.cpu()])]
 
     def set_states(self, indices, states):
-        super(Env, self).set_states([i for i in indices.cpu()], [s.state for s in states])
+        super(BfsEnv, self).set_states([i for i in indices.cpu()], [s.state for s in states])
