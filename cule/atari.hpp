@@ -19,3 +19,4 @@
 #include <cule/atari/tia.hpp>
 #include <cule/atari/wrapper.hpp>
 
+#include <cule/atari/bfs_wrapper.hpp>

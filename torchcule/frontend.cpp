@@ -279,5 +279,108 @@ PYBIND11_MODULE(torchcule_atari, m) {
     .def("frame_state_size", &AtariEnv::frame_state_size)
     .def("tia_update_size", &AtariEnv::tia_update_size)
     ;
+
+    py::class_<BfsAtariEnv>(m, "BfsAtariEnv")
+    .def(py::init<const AtariRom&, const size_t, const size_t>())
+    .def("initialize", [](BfsAtariEnv &env,
+                          uint64_t statesBuffer,
+                          uint64_t frameStatesBuffer,
+                          uint64_t ramBuffer,
+                          uint64_t tiaUpdateBuffer,
+                          uint64_t frameBuffer,
+                          uint64_t romIndicesBuffer,
+                          uint64_t minimalActionsBuffer,
+                          uint64_t randStatesBuffer,
+                          uint64_t cachedStatesBuffer,
+                          uint64_t cachedRamBuffer,
+                          uint64_t cachedFrameStatesBuffer,
+                          uint64_t cachedTiaUpdateBuffer,
+                          uint64_t cacheIndexBuffer)
+        {
+            env.initialize_ptrs(reinterpret_cast<cule::atari::state*>(statesBuffer),
+                                reinterpret_cast<cule::atari::frame_state*>(frameStatesBuffer),
+                                reinterpret_cast<uint8_t*>(ramBuffer),
+                                reinterpret_cast<uint32_t*>(tiaUpdateBuffer),
+                                reinterpret_cast<uint8_t*>(frameBuffer),
+                                reinterpret_cast<uint32_t*>(romIndicesBuffer),
+                                reinterpret_cast<AtariAction*>(minimalActionsBuffer),
+                                reinterpret_cast<uint32_t*>(randStatesBuffer),
+                                reinterpret_cast<cule::atari::state*>(cachedStatesBuffer),
+                                reinterpret_cast<uint8_t*>(cachedRamBuffer),
+                                reinterpret_cast<cule::atari::frame_state*>(cachedFrameStatesBuffer),
+                                reinterpret_cast<uint32_t*>(cachedTiaUpdateBuffer),
+                                reinterpret_cast<uint32_t*>(cacheIndexBuffer));
+        }
+    )
+    .def("reset", [](BfsAtariEnv &env, uint64_t seedBuffer)
+        {
+            env.reset((uint32_t*) seedBuffer);
+        }
+    )
+    .def("reset_states", [](BfsAtariEnv &env)
+        {
+            env.reset_states();
+        }
+    )
+    .def("step", [](BfsAtariEnv &env, const bool fire_reset, const size_t num_envs, uint64_t doneBuffer)
+        {
+            env.step(fire_reset,
+                     num_envs,
+                     reinterpret_cast<bool*>(doneBuffer));
+        }
+    )
+    .def("get_data", [](BfsAtariEnv& env, const bool episodic_life, const size_t num_envs, uint64_t doneBuffer, uint64_t rewardBuffer, uint64_t livesBuffer)
+        {
+            env.get_data(episodic_life,
+                         num_envs,
+                         reinterpret_cast<bool*>(doneBuffer),
+                         reinterpret_cast<float*>(rewardBuffer),
+                         reinterpret_cast<int32_t*>(livesBuffer));
+        }
+    )
+    .def("generate_frames", [](BfsAtariEnv& env, const bool rescale, const bool last_frame, const size_t num_channels, uint64_t imageBuffer)
+        {
+            env.generate_frames(rescale,
+                                last_frame,
+                                num_channels,
+                                reinterpret_cast<uint8_t*>(imageBuffer));
+        }
+    )
+    .def("generate_random_actions", [](BfsAtariEnv& env, uint64_t actionBuffer)
+        {
+            env.generate_random_actions((AtariAction*) actionBuffer);
+        }
+    )
+    .def("sync_other_stream", [](BfsAtariEnv& env)
+        {
+            // cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+            // env.sync_other_stream(stream);
+        }
+    )
+    .def("sync_this_stream", [](BfsAtariEnv& env)
+        {
+            // cudaStream_t stream = at::cuda::getCurrentCUDAStream();
+            // env.sync_this_stream(stream);
+        }
+    )
+    .def("get_states", [](BfsAtariEnv& env, const std::vector<int32_t>& indices)
+        {
+            std::vector<AtariState> atari_states(indices.size());
+            env.get_states(indices.size(), indices.data(), atari_states.data());
+            return atari_states;
+        }
+    )
+    .def("set_states", [](BfsAtariEnv& env, const std::vector<int32_t>& indices, const std::vector<AtariState>& atari_states)
+        {
+            env.set_states(indices.size(), indices.data(), atari_states.data());
+        }
+    )
+    .def("set_cuda", &BfsAtariEnv::set_cuda)
+    .def("size", &BfsAtariEnv::size)
+    .def("image_buffer_size", &BfsAtariEnv::image_buffer_size)
+    .def("state_size", &BfsAtariEnv::state_size)
+    .def("frame_state_size", &BfsAtariEnv::frame_state_size)
+    .def("tia_update_size", &BfsAtariEnv::tia_update_size)
+    ;
 }
 
