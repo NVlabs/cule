@@ -13,7 +13,8 @@ from torchcule_atari import AtariRom
 class Rom(AtariRom):
 
     def __init__(self, env_name):
-        game_path = gym.make(env_name).env.game_path
+        ### TODO improve method to get base game name ###
+        game_path = atari_py.get_game_path(env_name.split('No')[0].lower())
         if not os.path.exists(game_path):
             raise IOError('Requested environment (%s) does not exist '
                           'in valid list of environments:\n%s' \

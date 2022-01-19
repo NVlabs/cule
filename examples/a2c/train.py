@@ -85,8 +85,7 @@ def worker(gpu, ngpus_per_node, args):
         with torch.no_grad():
 
             for step in range(args.num_steps):
-                with torch.cuda.amp.autocast():
-                    value, logit = model(states[step])
+                value, logit = model(states[step])
 
                 # store values
                 values[step] = value.squeeze(-1)
@@ -142,8 +141,7 @@ def worker(gpu, ngpus_per_node, args):
                 for step in reversed(range(args.num_steps)):
                     returns[step] = rewards[step] + (args.gamma * returns[step + 1] * masks[step])
 
-        with torch.cuda.amp.autocast():
-            value, logit = model(states[:-1].view(-1, *states.size()[-3:]))
+        value, logit = model(states[:-1].view(-1, *states.size()[-3:]))
 
         log_probs = F.log_softmax(logit, dim=1)
         probs = F.softmax(logit, dim=1)
@@ -159,13 +157,8 @@ def worker(gpu, ngpus_per_node, args):
         loss = value_loss * args.value_loss_coef + policy_loss - dist_entropy * args.entropy_coef
         optimizer.zero_grad()
 
-        if args.cpu_train:
-            loss.backward()
-            optimizer.step()
-        else:
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
+        loss.backward()
+        optimizer.step()
 
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
@@ -184,13 +177,17 @@ def worker(gpu, ngpus_per_node, args):
                 summary_writer.add_scalar('train/policy_loss', policy_loss, T, walltime=total_time)
                 summary_writer.add_scalar('train/entropy', dist_entropy, T, walltime=total_time)
 
+                # print(states[0,:32].size())
+                # images = np.squeeze(np.hstack(states[0,:32].cpu()))
+                # summary_writer.add_image('train/frames', images, T, walltime=total_time)
+
             progress_data = callback(args, model, T, iter_time, final_rewards, final_lengths,
                                      value_loss.item(), policy_loss.item(), dist_entropy.item(),
                                      train_csv_writer, train_csv_file)
             iterator.set_postfix_str(progress_data)
 
     if args.plot and (args.rank == 0):
-        writer.close()
+        summary_writer.close()
 
     if args.use_openai:
         train_env.close()
