@@ -129,6 +129,18 @@ The CuLE CPU backend is used by default for testing. If you want to use OpenAIGy
 # Citing
 
 ```
+@inproceedings{NEURIPS2020_e4d78a6b,
+ author = {Dalton, Steven and frosio, iuri},
+ booktitle = {Advances in Neural Information Processing Systems},
+ editor = {H. Larochelle and M. Ranzato and R. Hadsell and M. F. Balcan and H. Lin},
+ pages = {19773--19782},
+ publisher = {Curran Associates, Inc.},
+ title = {Accelerating Reinforcement Learning through GPU Atari Emulation},
+ url = {https://proceedings.neurips.cc/paper/2020/file/e4d78a6b4d93e1d79241f7b282fa3413-Paper.pdf},
+ volume = {33},
+ year = {2020}
+}
+
 @misc{dalton2019gpuaccelerated,
    title={GPU-Accelerated Atari Emulation for Reinforcement Learning},
    author={Steven Dalton and Iuri Frosio and Michael Garland},
