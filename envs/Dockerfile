@@ -1,4 +1,4 @@
-FROM nvidia/cuda:11.4.2-devel-ubuntu20.04
+FROM nvidia/cuda:11.7.1-devel-ubuntu22.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=US
@@ -18,7 +18,7 @@ RUN apt-get -y update -qq && apt-get install -y --no-install-recommends \
         libxrender-dev \
         libxext-dev \
         iproute2 \
-        python3.8 \
+        python3.9 \
         python3-dev \
         python3-setuptools \
         python3-pip \
@@ -29,7 +29,7 @@ RUN apt-get -y update -qq && apt-get install -y --no-install-recommends \
         zip \
     && \
     rm -rf /var/lib/apt/lists/* && \
-    ln -s /usr/bin/python3.8 /usr/bin/python
+    ln -s /usr/bin/python3.9 /usr/bin/python
 ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/local/cuda/lib64"
 
 RUN pip install --upgrade cython \
@@ -37,10 +37,10 @@ RUN pip install --upgrade cython \
                           gym[atari] \
                           opencv-python \
                           psutil \
-                          torch==1.10.0 \
-                          torchvision==0.11.1 \
+                          torch==1.11.0 \
+                          torchvision==0.12.0 \
                           tqdm
 
-RUN git clone -b develop --recursive https://github.com/NVLabs/cule && \
+RUN git clone -b master --recursive https://github.com/NVLabs/cule && \
     cd cule && \
     python setup.py install
