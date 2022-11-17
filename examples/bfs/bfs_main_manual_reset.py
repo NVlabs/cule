@@ -14,18 +14,18 @@ def train(device_env, cpu_env, step_env, gamma=0.9, max_depth=4, crossover_level
     # Create root index tensor
     root_index = torch.LongTensor([0])
     # Get a list of the minimal set of actions for the environment
-    min_actions = device_env.minimal_actions()
+    min_actions = device_env.cart.minimal_actions()
     min_actions_size = len(min_actions)
 
     num_envs = min_actions_size ** max_depth
 
     device_actions = torch.arange(num_envs, device=device_env.device) % min_actions_size
-    cpu_actions = device_actions.to(device=cpu_env.device)
+    device_actions = device_env.action_set[device_actions.long()]
+    cpu_actions = device_actions.to(cpu_env.device)
 
-    done = False
     counter = 0
 
-    while (not done) and (counter < 400):
+    while counter < 48000:
         cpu_env.set_size(1)
 
         # Set device environment root state before calling step function
@@ -113,7 +113,7 @@ def train(device_env, cpu_env, step_env, gamma=0.9, max_depth=4, crossover_level
             # Waits for everything to finish running
             torch.cuda.synchronize()
             depth_runtime = depth_start.elapsed_time(depth_end)
-            print('Level {} with {} environments: {:4.4f} (ms)'.format(depth + 1, num_envs, depth_runtime))
+            # print('Level {} with {} environments: {:4.4f} (ms)'.format(depth + 1, num_envs, depth_runtime))
 
         # On the last step we call generate_frames again to get the last frames
         depth_env.generate_frames(depth_env.rescale, True, depth_env.num_channels, depth_env.observations1.data_ptr())
@@ -131,22 +131,24 @@ def train(device_env, cpu_env, step_env, gamma=0.9, max_depth=4, crossover_level
         # Waits for everything to finish running
         torch.cuda.synchronize()
         total_runtime = total_start.elapsed_time(total_end)
-        print('Total expansion time: {:4.4f} (ms)'.format(total_runtime))
+        # print('Total expansion time: {:4.4f} (ms)'.format(total_runtime))
 
         # Compute max over rewards to find the best action
         # assert(depth_env.rewards.size(0) % (depth_env.action_space.n ** (max_depth - 1)) == 0)
         best_value = depth_env.rewards.max()
         best_action = depth_env.rewards.argmax() // depth_env.action_space.n ** (max_depth - 1)
 
+        best_action = step_env.action_set[best_action.long()]
         observation, rewards, done, info = step_env.step(best_action.unsqueeze(-1))
-        done = done[0]
 
         counter += 1
 
         # Reset the step env here if we want to play another game
-        if done:
-            print('Resetting step environment')
-            step_env.reset()
+        if done[0]:
+            random_index = np.random.randint(0, step_env.cached_states.size(0))
+            step_env.states[0] = step_env.cached_states[random_index]
+            step_env.ram[0] = step_env.cached_ram[random_index]
+            step_env.frame_states[0] = step_env.cached_frame_states[random_index]
 
 
 def bfs_main(args):
@@ -156,40 +158,32 @@ def bfs_main(args):
     num_actions = len(cart.minimal_actions())
     num_envs = num_actions ** (args.max_depth - 1)
 
-    # Update the environment actions sets
-    if 'MsPacman' in args.env_name:
-        from torchcule_atari import AtariAction
-        action_set = [AtariAction.UP, AtariAction.DOWN, AtariAction.LEFT, AtariAction.RIGHT, AtariAction.NOOP]
-    else:
-        action_set = None
-
     # Create an environment for processing BFS steps on the GPU
     device_env = AtariEnv(args.env_name, num_envs, color_mode='gray', repeat_prob=0.0,
-                          device=device, rescale=True, episodic_life=args.episodic_life,
-                          frameskip=4, action_set=action_set)
+                          device=device, rescale=True, episodic_life=args.episodic_life, frameskip=4)
     device_env.train()
     super(AtariEnv, device_env).reset(0)
 
     # Create an environment for processing BFS steps on the CPU
     cpu_env = AtariEnv(args.env_name, num_envs, color_mode='gray', repeat_prob=0.0,
-                       device='cpu', rescale=True, episodic_life=args.episodic_life,
-                       frameskip=4, action_set=action_set)
+                       device='cpu', rescale=True, episodic_life=args.episodic_life, frameskip=4)
     cpu_env.train()
-    observation = super(AtariEnv, cpu_env).reset(0)
+    super(AtariEnv, cpu_env).reset(0)
 
     # Create an environment for stepping
     step_env = AtariEnv(args.env_name, 1, color_mode='gray', repeat_prob=0.0, device='cpu',
-                        rescale=True, episodic_life=args.episodic_life, frameskip=4,
-                        action_set=action_set, max_noop_steps=1)
+                        rescale=True, episodic_life=args.episodic_life, frameskip=4, max_noop_steps=args.max_noop_steps)
     step_env.train()
     step_env.reset(initial_steps=args.ale_start_steps, verbose=args.verbose)
 
-    if 'MsPacman' in args.env_name:
-        fig = plt.figure()
-        plt.imshow(np.squeeze(np.hstack(step_env.observations1[:min(num_envs, 4)].cpu())), animated=False, cmap='gray')
-        plt.show()
+    action = torch.Tensor([0], dtype=torch.uint8)
+    num_random_steps = 40
+    for i in range(args.max_noop_steps):
+        for j in range(num_random_steps):
+            step_env.step(action)
 
     train(device_env, cpu_env, step_env, args.gamma, args.max_depth, args.crossover_level)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='CuLE')
@@ -206,6 +200,7 @@ if __name__ == '__main__':
     parser.add_argument('--use-cuda-env', action='store_true', default=False, help='use CUDA for ALE updates')
     parser.add_argument('--use-openai', action='store_true', default=False, help='Use OpenAI Gym environment')
     parser.add_argument('--max-depth', type=int, default=4, help='depth of action space for BFS traversal (default: 4)')
+    parser.add_argument('--max-noop-steps', type=int, default=200, help='depth of action space for BFS traversal (default: 200)')
     args = parser.parse_args(sys.argv[1:])
 
     bfs_main(args)

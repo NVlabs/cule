@@ -54,7 +54,7 @@ class Env(torchcule_atari.AtariEnv):
 
     def __init__(self, env_name, num_envs, color_mode='rgb', device='cpu', rescale=False,
                  frameskip=1, repeat_prob=0.25, episodic_life=False, max_noop_steps=30,
-                 max_episode_length=10000):
+                 max_episode_length=10000, action_set=None):
         """Initialize the ALE class with a given environment
 
         Args:
@@ -88,7 +88,9 @@ class Env(torchcule_atari.AtariEnv):
         self.width = 84 if self.rescale else self.cart.screen_width()
         self.num_channels = 3 if color_mode == 'rgb' else 1
 
-        self.action_set = torch.Tensor([int(s) for s in self.cart.minimal_actions()]).to(self.device).byte()
+        if action_set is None:
+            action_set = self.cart.minimal_actions()
+        self.action_set = torch.Tensor([int(s) for s in action_set]).to(device=self.device, dtype=torch.uint8)
 
         # check if FIRE is in the action set
         self.fire_reset = int(torchcule_atari.FIRE) in self.action_set
@@ -96,19 +98,17 @@ class Env(torchcule_atari.AtariEnv):
         self.action_space = spaces.Discrete(self.action_set.size(0))
         self.observation_space = spaces.Box(low=0, high=255, shape=(self.num_channels, self.height, self.width), dtype=np.uint8)
 
-        self.observations1 = torch.zeros((num_envs, self.height, self.width, self.num_channels), device=self.device, dtype=torch.uint8)
-        self.observations2 = torch.zeros((num_envs, self.height, self.width, self.num_channels), device=self.device, dtype=torch.uint8)
         self.done = torch.zeros(num_envs, device=self.device, dtype=torch.bool)
         self.actions = torch.zeros(num_envs, device=self.device, dtype=torch.uint8)
         self.last_actions = torch.zeros(num_envs, device=self.device, dtype=torch.uint8)
         self.lives = torch.zeros(num_envs, device=self.device, dtype=torch.int32)
         self.rewards = torch.zeros(num_envs, device=self.device, dtype=torch.float32)
 
-        self.states = torch.zeros((num_envs, self.state_size()), device=self.device, dtype=torch.uint8)
+        extra_bfs_buffer = num_envs // self.action_space.n
+        self.states = torch.zeros((num_envs + extra_bfs_buffer, self.state_size()), device=self.device, dtype=torch.uint8)
         self.frame_states = torch.zeros((num_envs, self.frame_state_size()), device=self.device, dtype=torch.uint8)
-        self.ram = torch.randint(0, 255, (num_envs, self.cart.ram_size()), device=self.device, dtype=torch.uint8)
+        self.ram = torch.randint(0, 255, (num_envs + extra_bfs_buffer, self.cart.ram_size()), device=self.device, dtype=torch.uint8)
         self.tia = torch.zeros((num_envs, self.tia_update_size()), device=self.device, dtype=torch.int32)
-        self.frame_buffer = torch.zeros((num_envs, 300 * self.cart.screen_width()), device=self.device, dtype=torch.uint8)
         self.cart_offsets = torch.zeros(num_envs, device=self.device, dtype=torch.int32)
         self.rand_states = torch.randint(0, np.iinfo(np.int32).max, (num_envs,), device=self.device, dtype=torch.int32)
         self.cached_states = torch.zeros((max_noop_steps, self.state_size()), device=self.device, dtype=torch.uint8)
@@ -116,6 +116,10 @@ class Env(torchcule_atari.AtariEnv):
         self.cached_frame_states = torch.zeros((max_noop_steps, self.frame_state_size()), device=self.device, dtype=torch.uint8)
         self.cached_tia = torch.zeros((max_noop_steps, self.tia_update_size()), device=self.device, dtype=torch.int32)
         self.cache_index = torch.zeros((num_envs,), device=self.device, dtype=torch.int32)
+
+        self.observations1 = torch.zeros((num_envs, self.height, self.width, self.num_channels), device=self.device, dtype=torch.uint8)
+        self.observations2 = torch.zeros((num_envs, self.height, self.width, self.num_channels), device=self.device, dtype=torch.uint8)
+        self.frame_buffer = torch.zeros((num_envs, 300 * self.cart.screen_width()), device=self.device, dtype=torch.uint8)
 
         self.set_cuda(self.is_cuda, self.device.index if self.is_cuda else -1)
         self.initialize(self.states.data_ptr(),
@@ -200,13 +204,14 @@ class Env(torchcule_atari.AtariEnv):
         """
         return self.action_set
 
-    def sample_random_actions(self, asyn=False):
+    def sample_random_actions(self, num_envs=None, asyn=False):
         """Generate a random set of actions
 
         Returns:
             list[Action]: random set of actions generated for the environment
         """
-        return torch.randint(self.minimal_actions().size(0), (self.num_envs,), device=self.device, dtype=torch.uint8)
+        num_envs = self.size() if num_envs is None else num_envs
+        return torch.randint(self.minimal_actions().size(0), (num_envs,), device=self.device, dtype=torch.uint8)
 
     def screen_shape(self):
         """Get the shape of the observations
@@ -215,6 +220,23 @@ class Env(torchcule_atari.AtariEnv):
             tuple(int,int): Tuple containing height and width of observations
         """
         return (self.height, self.width)
+
+    def expand(self, num_envs):
+        states = self.states[:self.size()].clone()
+        ram = self.ram[:self.size()].clone()
+        rewards = self.rewards[:self.size()].clone()
+        done = self.done[:self.size()].clone()
+        frame_states = self.frame_states[:self.size()].clone()
+
+        self.set_size(num_envs)
+
+        env_indices = torch.arange(self.size(), device=self.device) // len(self.action_set)
+
+        self.states[:self.size()] = states[env_indices]
+        self.ram[:self.size()] = ram[env_indices]
+        self.rewards[:self.size()] = rewards[env_indices]
+        self.done[:self.size()] = done[env_indices]
+        self.frame_states[:self.size()] = frame_states[env_indices]
 
     def reset(self, seeds=None, initial_steps=50, verbose=False, asyn=False):
         """Reset the environments
@@ -227,7 +249,9 @@ class Env(torchcule_atari.AtariEnv):
             tuple(int,int): Tuple containing height and width of observations
         """
         if seeds is None:
-            seeds = torch.randint(np.iinfo(np.int32).max, (self.num_envs,), dtype=torch.int32, device=self.device)
+            seeds = torch.randint(np.iinfo(np.int32).max, (self.size(),), dtype=torch.int32, device=self.device)
+
+        env_indices = torch.arange(self.size(), dtype=torch.int32, device=self.device)
 
         if self.is_cuda:
             self.sync_other_stream()
@@ -243,8 +267,8 @@ class Env(torchcule_atari.AtariEnv):
                 iterator = tqdm(iterator)
 
             for _ in iterator:
-                actions = self.sample_random_actions()
-                self.step(actions, asyn=True)
+                actions = self.sample_random_actions(self.size())
+                self.step(actions, env_indices=env_indices, asyn=True)
 
         if self.is_cuda:
             self.sync_this_stream()
@@ -253,7 +277,7 @@ class Env(torchcule_atari.AtariEnv):
 
         return self.observations1
 
-    def step(self, player_a_actions, player_b_actions=None, asyn=False):
+    def step(self, player_a_actions, player_b_actions=None, env_indices=None, asyn=False):
         """Take a step in the environment by apply a set of actions
 
         Args:
@@ -266,8 +290,13 @@ class Env(torchcule_atari.AtariEnv):
             list[str]: miscellaneous information (currently unused)
         """
 
+        assert player_a_actions.size(0) == self.size()
+
 	    # sanity checks
-        assert player_a_actions.size(0) == self.num_envs
+        if env_indices is None:
+            env_indices = torch.arange(player_a_actions.size(0), dtype=torch.int32, device=self.device)
+
+        assert player_a_actions.size(0) == env_indices.size(0)
 
         self.rewards.zero_()
         self.observations1.zero_()
@@ -287,8 +316,8 @@ class Env(torchcule_atari.AtariEnv):
             self.sync_other_stream()
 
         for frame in range(self.frameskip):
-            super(Env, self).step(self.fire_reset and self.is_training, player_a_actions_ptr, player_b_actions_ptr, self.done.data_ptr())
-            self.get_data(self.episodic_life, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
+            super(Env, self).step(self.fire_reset and self.is_training, False, player_a_actions_ptr, player_b_actions_ptr, self.done.data_ptr(), env_indices.data_ptr())
+            self.get_data(self.episodic_life, 1.0, self.done.data_ptr(), self.rewards.data_ptr(), self.lives.data_ptr())
             if frame == (self.frameskip - 2):
                 self.generate_frames(self.rescale, False, self.num_channels, self.observations2.data_ptr())
 
@@ -307,8 +336,7 @@ class Env(torchcule_atari.AtariEnv):
         return self.observations1, self.rewards, self.done, info
 
     def get_states(self, indices):
-        from torchcule.atari.state import State
-        return [State(s) for s in super(Env, self).get_states([i for i in indices.cpu()])]
+        return (self.states[indices], self.ram[indices])
 
-    def set_states(self, indices, states):
-        super(Env, self).set_states([i for i in indices.cpu()], [s.state for s in states])
+    def set_states(self, indices, states, rams):
+        self.states[indices], self.ram[indices] = states.to(device=self.device), rams.to(device=self.device)

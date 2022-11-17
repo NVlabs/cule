@@ -118,7 +118,7 @@ struct reset_functor
 
         if(s.tiaFlags[FLAG_ALE_TERMINAL])
         {
-            const size_t NUM_RAM_INTS = ram_size / sizeof(uint32_t);
+            const size_t NUM_INT_REGS = 128 / sizeof(uint32_t);
             prng gen(rand_states_buffer[self.index()]);
             const size_t cache_index = gen.sample() % noop_reset_steps;
 
@@ -128,9 +128,9 @@ struct reset_functor
             s.ram = ram;
             cache_index_buffer[self.index()] = cache_index;
 
-            uint32_t* ram_int = ((uint32_t*) cached_ram_buffer) + (NUM_RAM_INTS * cache_index);
+            uint32_t* ram_int = ((uint32_t*) cached_ram_buffer) + (NUM_INT_REGS * cache_index);
 
-            for(size_t i = 0; i < NUM_RAM_INTS; i++)
+            for(size_t i = 0; i < NUM_INT_REGS; i++)
             {
                 ram[i] = ram_int[i];
             }
@@ -146,18 +146,50 @@ struct step_functor
     template<class Agent, class State_t>
     void operator()(Agent& self,
                     const bool fire_reset,
-                    State_t* states_buffer,
+                    const bool expand,
+                    State_t* current_states_buffer,
+                    State_t* previous_states_buffer,
+                    State_t* cached_states_buffer,
                     uint32_t* tia_update_buffer,
                     Action* player_a_buffer,
                     Action* player_b_buffer,
-                    bool* done_buffer) const
+                    bool* done_buffer,
+                    const int32_t* index_buffer,
+                    uint8_t* current_ram_buffer,
+                    uint8_t* previous_ram_buffer,
+                    const size_t ram_size) const
     {
-        if((done_buffer != nullptr) && done_buffer[self.index()])
+        const size_t NUM_INT_REGS = 128 / sizeof(uint32_t);
+
+        size_t state_index = self.index();
+        if(index_buffer != nullptr)
+        {
+            state_index = index_buffer[state_index];
+        }
+
+        if((done_buffer != nullptr) && done_buffer[state_index])
         {
             return;
         }
 
-        State_t& s = states_buffer[self.index()];
+        if((expand == false) || previous_states_buffer == nullptr)
+        {
+            previous_states_buffer = current_states_buffer;
+        }
+        if((expand == false) || previous_ram_buffer == nullptr)
+        {
+            previous_ram_buffer = current_ram_buffer;
+        }
+
+        State_t s = previous_states_buffer[state_index];
+        s.rom = cached_states_buffer[0].rom;
+        s.ram = ((uint32_t*) current_ram_buffer) + (NUM_INT_REGS * self.index());
+        uint32_t* ram_int = ((uint32_t*) previous_ram_buffer) + (NUM_INT_REGS * state_index);
+
+        for(size_t i = 0; i < NUM_INT_REGS; i++)
+        {
+            s.ram[i] = ram_int[i];
+        }
 
         s.tia_update_buffer = nullptr;
         if(tia_update_buffer != nullptr)
@@ -184,6 +216,8 @@ struct step_functor
         }
 
         Environment_t::act(s, player_a_action, player_b_action);
+
+        current_states_buffer[self.index()] = s;
     }
 };
 
@@ -193,6 +227,7 @@ struct get_data_functor
     template<class Agent, typename State_t>
     void operator()(Agent& self,
                     const bool episodic_life,
+                    const float scale,
                     State_t* states_buffer,
                     bool* done_buffer,
                     float* rewards_buffer,
@@ -214,7 +249,42 @@ struct get_data_functor
         const bool lost_life = new_lives < old_lives;
         s.tiaFlags.template change<FLAG_ALE_LOST_LIFE>(lost_life);
 
-        rewards_buffer[self.index()] += ALE_t::getRewards(s);
+        rewards_buffer[self.index()] += scale * ALE_t::getRewards(s);
+        done_buffer[self.index()] |= s.tiaFlags[FLAG_ALE_TERMINAL] || (episodic_life && lost_life);
+
+        s.score = ALE_t::getScore(s);
+    }
+};
+
+template<typename Environment_t>
+struct bfs_get_data_functor
+{
+    template<class Agent, typename State_t>
+    void operator()(Agent& self,
+                    const bool episodic_life,
+                    const float gamma,
+                    State_t* states_buffer,
+                    bool* done_buffer,
+                    float* rewards_buffer,
+                    int32_t* lives_buffer)
+    {
+        using ALE_t = typename Environment_t::ALE_t;
+
+        if((done_buffer != nullptr) && done_buffer[self.index()])
+        {
+            return;
+        }
+
+        State_t& s = states_buffer[self.index()];
+
+        const uint32_t old_lives = lives_buffer[self.index()];
+        const uint32_t new_lives = ALE_t::getLives(s);
+        lives_buffer[self.index()] = new_lives;
+
+        const bool lost_life = new_lives < old_lives;
+        s.tiaFlags.template change<FLAG_ALE_LOST_LIFE>(lost_life);
+
+        rewards_buffer[self.index()] += gamma * ALE_t::getRewards(s);
         done_buffer[self.index()] |= s.tiaFlags[FLAG_ALE_TERMINAL] || (episodic_life && lost_life);
 
         s.score = ALE_t::getScore(s);

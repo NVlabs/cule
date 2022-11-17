@@ -15,6 +15,7 @@
 #include <cule/atari/png.hpp>
 #include <cule/atari/preprocess.hpp>
 #include <cule/atari/rom.hpp>
+#include <cule/atari/state.hpp>
 
 #include <agency/agency.hpp>
 
@@ -62,11 +63,18 @@ reset(ExecutionPolicy&& policy,
         agency::bulk_invoke(policy(1),
                             step_functor<Environment>{},
                             true,
+                            false,
+                            wrap.cached_states_ptr,
+                            (state*) nullptr,
                             wrap.cached_states_ptr,
                             wrap.cached_tia_update_ptr,
                             nullptr,
                             nullptr,
-                            nullptr);
+                            nullptr,
+                            nullptr,
+                            wrap.cached_ram_ptr,
+                            nullptr,
+                            wrap.cart.ram_size());
         agency::bulk_invoke(policy(1),
                             preprocess_functor<Environment>{},
                             true,
@@ -91,11 +99,18 @@ reset(ExecutionPolicy&& policy,
         agency::bulk_invoke(policy(1),
                             step_functor<Environment>{},
                             true,
+                            false,
                             wrap.cached_states_ptr + i,
+                            (state*) nullptr,
+                            wrap.cached_states_ptr,
                             wrap.cached_tia_update_ptr + (i * ENV_UPDATE_SIZE),
+                            nullptr, // player A actions
+                            nullptr, // player B actions
+                            nullptr, // done buffer
+                            nullptr, // index buffer
+                            wrap.cached_ram_ptr,
                             nullptr,
-                            nullptr,
-                            nullptr);
+                            wrap.cart.ram_size());
         agency::bulk_invoke(policy(1),
                             preprocess_functor<Environment>{},
                             true,
@@ -110,11 +125,11 @@ reset(ExecutionPolicy&& policy,
     for (size_t i = 0; i < wrap.size(); i++)
     {
         const size_t index = rand() % wrap.noop_reset_steps;
-        wrap.states_ptr[i] = wrap.cached_states_ptr[index];
-        wrap.states_ptr[i].ram = (uint32_t *) (wrap.ram_ptr + (wrap.cart.ram_size() * i));
+        wrap.current_states_ptr[i] = wrap.cached_states_ptr[index];
+        wrap.current_states_ptr[i].ram = (uint32_t *) (wrap.current_ram_ptr + (wrap.cart.ram_size() * i));
         std::copy(wrap.cached_states_ptr[index].ram,
                   wrap.cached_states_ptr[index].ram + (wrap.cart.ram_size() / sizeof(uint32_t)),
-                  wrap.states_ptr[i].ram);
+                  wrap.current_states_ptr[i].ram);
         wrap.frame_states_ptr[i] = wrap.cached_frame_states_ptr[index];
     }
 }
@@ -130,7 +145,7 @@ reset_states(ExecutionPolicy&& policy,
                         reset_functor<Environment>{},
                         wrap.cart.ram_size(),
                         wrap.noop_reset_steps,
-                        wrap.states_ptr,
+                        wrap.current_states_ptr,
                         wrap.cached_states_ptr,
                         wrap.cached_ram_ptr,
                         wrap.frame_states_ptr,
@@ -153,7 +168,7 @@ get_states(ExecutionPolicy&& policy,
     agency::bulk_invoke(policy(num_states),
                         get_states_functor{},
                         indices,
-                        wrap.states_ptr,
+                        wrap.current_states_ptr,
                         wrap.frame_states_ptr,
                         output_states,
                         output_frame_states);
@@ -173,7 +188,7 @@ set_states(ExecutionPolicy&& policy,
     agency::bulk_invoke(policy(num_states),
                         set_states_functor{},
                         indices,
-                        wrap.states_ptr,
+                        wrap.current_states_ptr,
                         wrap.frame_states_ptr,
                         input_states,
                         input_frame_states);
@@ -186,18 +201,27 @@ void
 step(ExecutionPolicy&& policy,
      Wrapper& wrap,
      const bool fire_reset,
+     const bool expand,
      const Action* playerABuffer,
      const Action* playerBBuffer,
-     bool* doneBuffer)
+     bool* doneBuffer,
+     const int32_t * indexBuffer)
 {
     agency::bulk_invoke(policy(wrap.size()),
                         step_functor<Environment>{},
                         fire_reset,
-                        wrap.states_ptr,
+                        expand,
+                        wrap.current_states_ptr,
+                        wrap.previous_states_ptr,
+                        wrap.cached_states_ptr,
                         wrap.tia_update_ptr,
                         (Action*) playerABuffer,
                         (Action*) playerBBuffer,
-                        doneBuffer);
+                        doneBuffer,
+                        indexBuffer,
+                        wrap.current_ram_ptr,
+                        wrap.previous_ram_ptr,
+                        wrap.cart.ram_size());
 }
 
 template<typename Environment,
@@ -207,6 +231,7 @@ void
 get_data(ExecutionPolicy&& policy,
          Wrapper& wrap,
          const bool episodic_life,
+         const float scale,
          bool* doneBuffer,
          float* rewardsBuffer,
          int32_t* livesBuffer)
@@ -214,7 +239,8 @@ get_data(ExecutionPolicy&& policy,
     agency::bulk_invoke(policy(wrap.size()),
                         get_data_functor<Environment>{},
                         episodic_life,
-                        wrap.states_ptr,
+                        scale,
+                        wrap.current_states_ptr,
                         doneBuffer,
                         rewardsBuffer,
                         livesBuffer);
@@ -235,7 +261,7 @@ preprocess(ExecutionPolicy&& policy,
                         last_frame,
                         tiaBuffer,
                         wrap.cached_tia_update_ptr,
-                        wrap.states_ptr,
+                        wrap.current_states_ptr,
                         wrap.cache_index_ptr,
                         wrap.frame_states_ptr,
                         frameBuffer);
@@ -257,6 +283,15 @@ generate_frames(ExecutionPolicy&& policy,
                         rescale,
                         wrap.frame_ptr,
                         imageBuffer);
+}
+
+template<typename ExecutionPolicy,
+         typename Wrapper>
+void
+update_frame_states(ExecutionPolicy&& policy,
+                    Wrapper& wrap)
+{
+    printf("Calling WRONG updater\n");
 }
 
 template<typename ExecutionPolicy,

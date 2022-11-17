@@ -47,9 +47,11 @@ wrapper(const rom& cart,
 :   cart(cart),
     num_envs(num_envs),
     noop_reset_steps(noop_reset_steps),
-    states_ptr(nullptr),
+    current_states_ptr(nullptr),
     frame_states_ptr(nullptr),
-    ram_ptr(nullptr),
+    current_ram_ptr(nullptr),
+    previous_states_ptr(nullptr),
+    previous_ram_ptr(nullptr),
     tia_update_ptr(nullptr),
     frame_ptr(nullptr),
     rom_indices_ptr(nullptr),
@@ -78,9 +80,9 @@ initialize_ptrs(State_t* states_ptr,
                 uint32_t* cached_tia_update_ptr,
                 uint32_t* cache_index_ptr)
 {
-    this->states_ptr = states_ptr;
+    this->current_states_ptr = states_ptr;
     this->frame_states_ptr = frame_states_ptr;
-    this->ram_ptr = ram_ptr;
+    this->current_ram_ptr = ram_ptr;
     this->tia_update_ptr = tia_update_ptr;
     this->frame_ptr = frame_ptr;
     this->rom_indices_ptr = rom_indices_ptr;
@@ -91,6 +93,10 @@ initialize_ptrs(State_t* states_ptr,
     this->cached_frame_states_ptr = cached_frame_states_ptr;
     this->cached_tia_update_ptr = cached_tia_update_ptr;
     this->cache_index_ptr = cache_index_ptr;
+
+    const size_t last_level_size = this->num_envs / this->cart.minimal_actions().size();
+    this->previous_states_ptr = this->current_states_ptr + last_level_size;
+    this->previous_ram_ptr = this->current_ram_ptr + (this->cart.ram_size() * last_level_size);
 }
 
 template<typename ExecutionPolicy>
@@ -115,11 +121,13 @@ void
 wrapper::
 step(ExecutionPolicy&& policy,
      const bool fire_reset,
+     const bool expand,
      const Action* playerABuffer,
      const Action* playerBBuffer,
-     bool* doneBuffer)
+     bool* doneBuffer,
+     const int32_t* indexBuffer)
 {
-    ROM_SWITCH(dispatch::step, policy, *this, fire_reset, playerABuffer, playerBBuffer, doneBuffer)
+    ROM_SWITCH(dispatch::step, policy, *this, fire_reset, expand, playerABuffer, playerBBuffer, doneBuffer, indexBuffer)
 }
 
 template<typename ExecutionPolicy>
@@ -127,11 +135,12 @@ void
 wrapper::
 get_data(ExecutionPolicy&& policy,
          const bool episodic_life,
+         const float scale,
          bool* doneBuffer,
          float* rewardsBuffer,
          int32_t* livesBuffer)
 {
-    ROM_SWITCH(dispatch::get_data, policy, *this, episodic_life, doneBuffer, rewardsBuffer, livesBuffer)
+    ROM_SWITCH(dispatch::get_data, policy, *this, episodic_life, scale, doneBuffer, rewardsBuffer, livesBuffer)
 }
 
 template<typename ExecutionPolicy>
@@ -156,6 +165,14 @@ generate_frames(ExecutionPolicy&& policy,
 {
     preprocess(policy, last_frame, tia_update_ptr, frame_ptr);
     dispatch::generate_frames(policy, *this, rescale, num_channels, imageBuffer);
+}
+
+template<typename ExecutionPolicy>
+void
+wrapper::
+update_frame_states(ExecutionPolicy&& policy)
+{
+    dispatch::update_frame_states(policy, *this);
 }
 
 template<typename ExecutionPolicy>
@@ -218,6 +235,21 @@ wrapper::
 size() const
 {
     return num_envs;
+}
+
+void
+wrapper::
+set_size(const size_t num_envs)
+{
+    this->num_envs = num_envs;
+}
+
+void
+wrapper::
+swap_pointers()
+{
+    std::swap(this->current_states_ptr, this->previous_states_ptr);
+    std::swap(this->current_ram_ptr, this->previous_ram_ptr);
 }
 
 template<template<typename> class Allocator>

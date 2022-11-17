@@ -164,12 +164,17 @@ template<typename State_t, typename Environment_t, size_t NT>
 __launch_bounds__(NT) __global__
 void step_kernel(const uint32_t num_envs,
                  const bool fire_reset,
-                 State_t* states_buffer,
-                 uint8_t* ram_buffer,
+                 const bool expand,
+                 State_t* current_states_buffer,
+                 State_t* previous_states_buffer,
+                 uint8_t* current_ram_buffer,
+                 uint8_t* previous_ram_buffer,
                  uint32_t* tia_update_buffer,
                  const Action* player_a_buffer,
                  const Action* player_b_buffer,
-                 bool* done_buffer)
+                 bool* done_buffer,
+                 const int32_t* index_buffer,
+                 const size_t ram_size)
 {
     enum
     {
@@ -178,21 +183,34 @@ void step_kernel(const uint32_t num_envs,
 
     const uint32_t global_index = (NT * blockIdx.x) + threadIdx.x;
 
-    if((global_index >= num_envs) || done_buffer[global_index])
+    uint32_t state_index = global_index;
+    if(index_buffer != nullptr)
+    {
+        state_index = index_buffer[state_index];
+    }
+
+    if((global_index >= num_envs) || done_buffer[state_index])
     {
         return;
     }
 
-    states_buffer += global_index;
+    if((expand == false) || previous_states_buffer == nullptr)
+    {
+        previous_states_buffer = current_states_buffer;
+    }
+    if((expand == false) || previous_ram_buffer == nullptr)
+    {
+        previous_ram_buffer = current_ram_buffer;
+    }
 
     uint32_t ram[NUM_INT_REGS];
 
     State_t s;
 
     {
-        state_store_load_helper(s, *states_buffer);
+        state_store_load_helper(s, previous_states_buffer[state_index]);
 
-        uint32_t * ram_int = ((uint32_t*) ram_buffer) + (NUM_INT_REGS * NT * blockIdx.x) + threadIdx.x;
+        uint32_t * ram_int = ((uint32_t*) previous_ram_buffer) + (NUM_INT_REGS * NT * state_index) + threadIdx.x;
 
         #pragma loop unroll
         for(int32_t i = 0; i < NUM_INT_REGS; i++)
@@ -226,9 +244,9 @@ void step_kernel(const uint32_t num_envs,
     Environment_t::act(s, player_a_action, player_b_action);
 
     {
-        state_store_load_helper(*states_buffer, s);
+        state_store_load_helper(current_states_buffer[global_index], s);
 
-        uint32_t * ram_int = ((uint32_t*) ram_buffer) + (NUM_INT_REGS * NT * blockIdx.x) + threadIdx.x;
+        uint32_t * ram_int = ((uint32_t*) current_ram_buffer) + (NUM_INT_REGS * NT * blockIdx.x) + threadIdx.x;
 
         #pragma loop unroll
         for(int32_t i = 0; i < NUM_INT_REGS; i++)
@@ -240,8 +258,44 @@ void step_kernel(const uint32_t num_envs,
 
 template<typename State_t, typename ALE_t, size_t NT>
 __launch_bounds__(NT) __global__
+void bfs_get_data_kernel(const int32_t num_envs,
+                         const bool episodic_life,
+                         const float gamma,
+                         State_t* states_buffer,
+                         const uint8_t* ram_buffer,
+                         bool* done_buffer,
+                         float* rewards_buffer,
+                         int32_t* lives_buffer)
+{
+
+    const uint32_t global_index = (NT * blockIdx.x) + threadIdx.x;
+
+    if((global_index >= num_envs) || done_buffer[global_index])
+    {
+        return;
+    }
+
+    State_t& s = states_buffer[global_index];
+    s.ram = (uint32_t*)(ram_buffer + (128 * global_index));
+
+    const uint32_t old_lives = lives_buffer[global_index];
+    const uint32_t new_lives = ALE_t::getLives(s);
+    lives_buffer[global_index] = new_lives;
+
+    const bool lost_life = new_lives < old_lives;
+    s.tiaFlags.template change<FLAG_ALE_LOST_LIFE>(lost_life);
+
+    rewards_buffer[global_index] += gamma * ALE_t::getRewards(s);
+    done_buffer[global_index] |= s.tiaFlags[FLAG_ALE_TERMINAL] || (episodic_life && lost_life);
+
+    s.score = ALE_t::getScore(s);
+}
+
+template<typename State_t, typename ALE_t, size_t NT>
+__launch_bounds__(NT) __global__
 void get_data_kernel(const int32_t num_envs,
                      const bool episodic_life,
+                     const float scale,
                      State_t* states_buffer,
                      const uint8_t* ram_buffer,
                      bool* done_buffer,
@@ -266,7 +320,7 @@ void get_data_kernel(const int32_t num_envs,
     const bool lost_life = new_lives < old_lives;
     s.tiaFlags.template change<FLAG_ALE_LOST_LIFE>(lost_life);
 
-    rewards_buffer[global_index] += ALE_t::getRewards(s);
+    rewards_buffer[global_index] += scale * ALE_t::getRewards(s);
     done_buffer[global_index] |= s.tiaFlags[FLAG_ALE_TERMINAL] || (episodic_life && lost_life);
 
     s.score = ALE_t::getScore(s);

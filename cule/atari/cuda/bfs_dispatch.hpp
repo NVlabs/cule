@@ -159,6 +159,7 @@ get_data(cule::cuda::parallel_execution_policy& policy,
          Wrapper& wrap,
          const bool episodic_life,
          const size_t num_envs,
+         const float gamma,
          bool* doneBuffer,
          float* rewardsBuffer,
          int32_t* livesBuffer)
@@ -169,10 +170,11 @@ get_data(cule::cuda::parallel_execution_policy& policy,
     const size_t BLOCK_SIZE = 256UL;
     const size_t NUM_BLOCKS = std::ceil(float(num_envs) / BLOCK_SIZE);
 
-    cule::atari::cuda::get_data_kernel<State_t, ALE_t, BLOCK_SIZE>
+    cule::atari::cuda::bfs_get_data_kernel<State_t, ALE_t, BLOCK_SIZE>
     <<<NUM_BLOCKS, BLOCK_SIZE, 0, policy.getStream()>>>(
         num_envs,
         episodic_life,
+        gamma,
         wrap.states_ptr,
         wrap.ram_ptr,
         doneBuffer,

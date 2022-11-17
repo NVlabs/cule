@@ -19,6 +19,31 @@ namespace atari
 namespace dispatch
 {
 
+
+template<typename Wrapper>
+void
+update_frame_states(cule::cuda::parallel_execution_policy& policy,
+                    Wrapper& wrap)
+{
+    const size_t BLOCK_SIZE = 256UL;
+    const size_t NUM_BLOCKS = std::ceil(float(wrap.size()) / BLOCK_SIZE);
+
+    using State_t = typename Wrapper::State_t;
+
+    cule::atari::cuda::initialize_frame_states_kernel<State_t, BLOCK_SIZE>
+    <<<NUM_BLOCKS, BLOCK_SIZE, 0, policy.getStream()>>>(
+        wrap.size(),
+        wrap.current_states_ptr,
+        wrap.frame_states_ptr,
+        &playfield_accessor(0, 0),
+        &player_mask_accessor(0, 0, 0, 0),
+        &player_mask_accessor(0, 0, 0, 0),
+        &missle_accessor(0, 0, 0, 0),
+        &missle_accessor(0, 0, 0, 0),
+        &ball_accessor(0, 0, 0));
+    // CULE_CUDA_PEEK_AND_SYNC;
+}
+
 template<typename Environment,
          typename Wrapper>
 void
@@ -37,7 +62,7 @@ reset(cule::cuda::parallel_execution_policy& policy,
     assert(env.cached_states_ptr != nullptr);
     assert(env.cached_ram_ptr != nullptr);
 
-    assert(wrap.states_ptr != nullptr);
+    assert(wrap.current_states_ptr != nullptr);
     assert(wrap.rand_states_ptr != nullptr);
     assert(wrap.cached_states_ptr != nullptr);
     assert(wrap.cached_ram_ptr != nullptr);
@@ -87,8 +112,8 @@ reset(cule::cuda::parallel_execution_policy& policy,
     <<<NUM_BLOCKS, BLOCK_SIZE, 0, policy.getStream()>>>(
         wrap.size(),
         wrap.noop_reset_steps,
-        wrap.states_ptr,
-        wrap.ram_ptr,
+        wrap.current_states_ptr,
+        wrap.current_ram_ptr,
         wrap.cached_states_ptr,
         wrap.cached_ram_ptr,
         wrap.rand_states_ptr,
@@ -112,8 +137,8 @@ reset_states(cule::cuda::parallel_execution_policy& policy,
     <<<NUM_BLOCKS, BLOCK_SIZE, 0, policy.getStream()>>>(
         wrap.size(),
         wrap.noop_reset_steps,
-        wrap.states_ptr,
-        wrap.ram_ptr,
+        wrap.current_states_ptr,
+        wrap.current_ram_ptr,
         wrap.cached_states_ptr,
         wrap.cached_ram_ptr,
         wrap.frame_states_ptr,
@@ -129,9 +154,11 @@ void
 step(cule::cuda::parallel_execution_policy& policy,
      Wrapper& wrap,
      const bool fire_reset,
+     const bool expand,
      const Action* playerABuffer,
      const Action* playerBBuffer,
-     bool* doneBuffer)
+     bool* doneBuffer,
+     const int32_t* indexBuffer)
 {
     using State_t = typename Wrapper::State_t;
 
@@ -142,12 +169,17 @@ step(cule::cuda::parallel_execution_policy& policy,
     <<<NUM_BLOCKS, BLOCK_SIZE, 0, policy.getStream()>>>(
         wrap.size(),
         fire_reset,
-        wrap.states_ptr,
-        wrap.ram_ptr,
+        expand,
+        wrap.current_states_ptr,
+        wrap.previous_states_ptr,
+        wrap.current_ram_ptr,
+        wrap.previous_ram_ptr,
         wrap.tia_update_ptr,
         playerABuffer,
         playerBBuffer,
-        doneBuffer);
+        doneBuffer,
+        indexBuffer,
+        wrap.cart.ram_size());
     // CULE_CUDA_PEEK_AND_SYNC;
 }
 
@@ -157,6 +189,7 @@ void
 get_data(cule::cuda::parallel_execution_policy& policy,
          Wrapper& wrap,
          const bool episodic_life,
+         const float scale,
          bool* doneBuffer,
          float* rewardsBuffer,
          int32_t* livesBuffer)
@@ -171,8 +204,9 @@ get_data(cule::cuda::parallel_execution_policy& policy,
     <<<NUM_BLOCKS, BLOCK_SIZE, 0, policy.getStream()>>>(
         wrap.size(),
         episodic_life,
-        wrap.states_ptr,
-        wrap.ram_ptr,
+        scale,
+        wrap.current_states_ptr,
+        wrap.current_ram_ptr,
         doneBuffer,
         rewardsBuffer,
         livesBuffer);
@@ -200,7 +234,7 @@ preprocess(cule::cuda::parallel_execution_policy& policy,
         tiaBuffer,
         wrap.cached_tia_update_ptr,
         wrap.cache_index_ptr,
-        wrap.states_ptr,
+        wrap.current_states_ptr,
         wrap.frame_states_ptr,
         frameBuffer);
     // CULE_CUDA_PEEK_AND_SYNC;
@@ -283,11 +317,11 @@ get_states(cule::cuda::parallel_execution_policy& policy,
     <<<NUM_BLOCKS, BLOCK_SIZE, 0, policy.getStream()>>>(
         num_states,
         indices,
-        wrap.states_ptr,
+        wrap.current_states_ptr,
         wrap.frame_states_ptr,
         output_states,
         output_frame_states,
-        wrap.ram_ptr,
+        wrap.current_ram_ptr,
         output_states_ram);
     // CULE_CUDA_PEEK_AND_SYNC;
 }
@@ -311,11 +345,11 @@ set_states(cule::cuda::parallel_execution_policy& policy,
     <<<NUM_BLOCKS, BLOCK_SIZE, 0, policy.getStream()>>>(
         num_states,
         indices,
-        wrap.states_ptr,
+        wrap.current_states_ptr,
         wrap.frame_states_ptr,
         input_states,
         input_frame_states,
-        wrap.ram_ptr,
+        wrap.current_ram_ptr,
         input_states_ram);
     // CULE_CUDA_PEEK_AND_SYNC;
 }

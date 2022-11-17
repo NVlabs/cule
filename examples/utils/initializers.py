@@ -10,7 +10,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from datetime import datetime
 from torchcule.atari import Env as AtariEnv
-from torchcule.atari import BfsEnv as BfsAtariEnv
 from utils.openai.envs import create_vectorize_atari_env
 from utils.runtime import cuda_device_str
 
@@ -66,12 +65,8 @@ def env_initialize(args, device, bfs_depth=None):
                                                max_frames=args.max_episode_length)
         observation = torch.from_numpy(train_env.reset()).squeeze(1)
     else:
-        if bfs_depth is not None:
-            train_env = BfsAtariEnv(args.env_name, max_depth=bfs_depth, color_mode='gray', repeat_prob=0.0,
-                                    device=device, rescale=True, episodic_life=args.episodic_life, frameskip=4)
-        else:
-            train_env = AtariEnv(args.env_name, args.num_ales, color_mode='gray', repeat_prob=0.0,
-                                 device=device, rescale=True, episodic_life=args.episodic_life, frameskip=4)
+        train_env = AtariEnv(args.env_name, args.num_ales, color_mode='gray', repeat_prob=0.0,
+                             device=device, rescale=True, episodic_life=args.episodic_life, frameskip=4)
         train_env.train()
         observation = train_env.reset(initial_steps=args.ale_start_steps, verbose=args.verbose).squeeze(-1)
 

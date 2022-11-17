@@ -32,6 +32,10 @@ public:
 
     size_t size() const;
 
+    void swap_pointers();
+
+    void set_size(const size_t num_envs);
+
     void initialize_ptrs(State_t* states_ptr,
                          frame_state* frame_states_ptr,
                          uint8_t* ram_ptr,
@@ -72,13 +76,16 @@ public:
     template<typename ExecutionPolicy>
     void step(ExecutionPolicy&& policy,
               const bool fire_reset,
+              const bool expand,
               const Action* player_a_buffer,
               const Action* player_b_buffer,
-              bool* doneBuffer);
+              bool* doneBuffer,
+              const int32_t* index_buffer);
 
     template<typename ExecutionPolicy>
     void get_data(ExecutionPolicy&& policy,
                   const bool episodic_life,
+                  const float scale,
                   bool* doneBuffer,
                   float* rewardsBuffer,
                   int32_t* livesBuffer);
@@ -97,6 +104,9 @@ public:
                          uint8_t* imageBuffer);
 
     template<typename ExecutionPolicy>
+    void update_frame_states(ExecutionPolicy&& policy);
+
+    template<typename ExecutionPolicy>
     void generate_random_actions(ExecutionPolicy&& policy,
                                  Action* actionsBuffer,
                                  const size_t N = 0);
@@ -113,8 +123,11 @@ public:
     size_t num_envs;
     size_t noop_reset_steps;
 
-    State_t* states_ptr;
-    uint8_t* ram_ptr;
+    State_t* current_states_ptr;
+    uint8_t* current_ram_ptr;
+
+    State_t* previous_states_ptr;
+    uint8_t* previous_ram_ptr;
 
     frame_state* frame_states_ptr;
     uint32_t* tia_update_ptr;

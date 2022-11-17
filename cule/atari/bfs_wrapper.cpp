@@ -119,7 +119,25 @@ _step(ExecutionPolicy&& policy,
      const Action* playerBBuffer,
      bool* doneBuffer)
 {
+    const size_t num_envs = this->num_envs;
+    this->num_envs = 1;
     ROM_SWITCH(dispatch::step, policy, *this, fire_reset, playerABuffer, playerBBuffer, doneBuffer)
+    this->num_envs = num_envs;
+}
+
+template<typename ExecutionPolicy>
+void
+bfs_wrapper::
+_get_data(ExecutionPolicy&& policy,
+          const bool episodic_life,
+          bool* doneBuffer,
+          float* rewardsBuffer,
+          int32_t* livesBuffer)
+{
+    const size_t num_envs = this->num_envs;
+    this->num_envs = 1;
+    ROM_SWITCH(dispatch::get_data, policy, *this, episodic_life, doneBuffer, rewardsBuffer, livesBuffer)
+    this->num_envs = num_envs;
 }
 
 template<typename ExecutionPolicy>
@@ -139,11 +157,12 @@ bfs_wrapper::
 get_data(ExecutionPolicy&& policy,
          const bool episodic_life,
          const size_t num_envs,
+         const float gamma,
          bool* doneBuffer,
          float* rewardsBuffer,
          int32_t* livesBuffer)
 {
-    ROM_SWITCH(bfs_dispatch::get_data, policy, *this, episodic_life, num_envs, doneBuffer, rewardsBuffer, livesBuffer)
+    ROM_SWITCH(bfs_dispatch::get_data, policy, *this, episodic_life, num_envs, gamma, doneBuffer, rewardsBuffer, livesBuffer)
 }
 
 template<typename ExecutionPolicy>

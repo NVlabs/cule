@@ -77,6 +77,13 @@ public:
                bool* doneBuffer);
 
     template<typename ExecutionPolicy>
+    void _get_data(ExecutionPolicy&& policy,
+                   const bool episodic_life,
+                   bool* doneBuffer,
+                   float* rewardsBuffer,
+                   int32_t* livesBuffer);
+
+    template<typename ExecutionPolicy>
     void step(ExecutionPolicy&& policy,
               const bool fire_reset,
               const size_t num_envs,
@@ -86,6 +93,7 @@ public:
     void get_data(ExecutionPolicy&& policy,
                   const bool episodic_life,
                   const size_t num_envs,
+                  const float gamma,
                   bool* doneBuffer,
                   float* rewardsBuffer,
                   int32_t* livesBuffer);
