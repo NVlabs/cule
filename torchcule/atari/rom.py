@@ -13,7 +13,7 @@ from torchcule_atari import AtariRom
 class Rom(AtariRom):
 
     def __init__(self, env_name):
-        rom_name = env_name.split('NoFrameskip')[0].lower(), '.bin'
+        rom_name = env_name.split('NoFrameskip')[0].lower() + '.bin'
         atari_py_path = os.path.dirname(atari_py.__file__)
         game_path = os.path.join(atari_py_path, 'atari_roms', rom_name)
         if not os.path.exists(game_path):
